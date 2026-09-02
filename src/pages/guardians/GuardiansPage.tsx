@@ -26,7 +26,7 @@ import { GUARDIAN_LINK_LABELS, type EntityStatus } from '../../types/common'
 import { canAccessSchoolScoped } from '../../lib/permissions'
 
 export function GuardiansPage() {
-  const { profile, canManageGuardians, isAdmin } = useAuth()
+  const { profile, canManageGuardians, isGeneralAdmin } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -122,7 +122,7 @@ export function GuardiansPage() {
         searchPlaceholder="Buscar por nome, e-mail ou telefone..."
         status={status}
         onStatusChange={setStatus}
-        showSchoolFilter={isAdmin}
+        showSchoolFilter={isGeneralAdmin}
         schoolId={schoolId}
         onSchoolChange={setSchoolId}
         schoolOptions={schools.map((school) => ({

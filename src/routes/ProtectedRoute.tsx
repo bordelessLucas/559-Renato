@@ -1,12 +1,13 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { PageSkeleton } from '../components/ui/Skeleton'
-import { isActiveProfile } from '../lib/permissions'
+import { canAccessAdminPanel, isActiveProfile, isGuardianUser } from '../lib/permissions'
 
 export function ProtectedRoute() {
-  const { user, profile, loading, needsSetup } = useAuth()
+  const { user, profile, loading, systemInitialized } = useAuth()
+  const location = useLocation()
 
-  if (loading) {
+  if (loading || systemInitialized === null) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
         <PageSkeleton />
@@ -15,40 +16,41 @@ export function ProtectedRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
-  if (needsSetup) {
-    return <Navigate to="/app/setup" replace />
+  if (!systemInitialized) {
+    if (location.pathname !== '/setup') {
+      return <Navigate to="/setup" replace />
+    }
+    return <Outlet />
   }
 
-  if (!profile) {
-    return <Navigate to="/app/sem-acesso" replace />
+  if (!profile || !isActiveProfile(profile)) {
+    if (location.pathname !== '/sem-acesso') {
+      return <Navigate to="/sem-acesso" replace />
+    }
+    return <Outlet />
   }
 
-  if (!isActiveProfile(profile)) {
-    return <Navigate to="/app/sem-acesso" replace />
+  if (location.pathname === '/setup' || location.pathname === '/sem-acesso') {
+    return <Navigate to="/app/dashboard" replace />
   }
 
-  return <Outlet />
-}
-
-export function SetupRoute() {
-  const { user, loading, needsSetup } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <PageSkeleton />
-      </div>
-    )
+  if (isGuardianUser(profile)) {
+    const allowed =
+      location.pathname === '/app/responsavel' || location.pathname === '/app/responsavel/'
+    if (!allowed) {
+      return <Navigate to="/app/responsavel" replace />
+    }
+    return <Outlet />
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />
+  if (!canAccessAdminPanel(profile) && location.pathname.startsWith('/app')) {
+    return <Navigate to="/sem-acesso" replace />
   }
 
-  if (!needsSetup) {
+  if (location.pathname === '/app/responsavel') {
     return <Navigate to="/app/dashboard" replace />
   }
 

@@ -108,7 +108,7 @@ export function UserDetailPage() {
         <CardBody>
           <div className="mb-4 flex flex-wrap gap-2">
             <StatusBadge status={user.status} />
-            <Badge variant={user.role === 'administrador' ? 'brand' : 'neutral'}>
+            <Badge variant={user.role === 'operador' || user.role === 'responsavel' ? 'neutral' : 'brand'}>
               {USER_ROLE_LABELS[user.role]}
             </Badge>
           </div>

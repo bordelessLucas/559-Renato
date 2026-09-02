@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -17,33 +18,39 @@ import {
 import { auth } from '../lib/firebase'
 import { getAuthErrorMessage } from '../lib/auth-errors'
 import { getSystemInitialized } from '../lib/firestore'
-import {
-  canManageGuardians,
-  canManageSchools,
-  canManageUsers,
-  isActiveProfile,
-  isAdmin,
-  roleLabel,
-} from '../lib/permissions'
 import { getUserProfile } from '../services/users'
 import { getSchoolById } from '../services/schools'
+import {
+  canManageGuardians as canManageGuardiansFn,
+  canManageSchools as canManageSchoolsFn,
+  canManageUsers as canManageUsersFn,
+  canAccessAdminPanel as canAccessAdminPanelFn,
+  isGeneralAdmin as isGeneralAdminFn,
+  isGuardianUser as isGuardianUserFn,
+  isAdmin as isAdminFn,
+  isActiveProfile,
+  roleLabel,
+} from '../lib/permissions'
 import type { AppUser } from '../types/user'
 
 interface AuthContextValue {
   user: User | null
   profile: AppUser | null
-  schoolName: string | null
+  schoolName: string
   loading: boolean
-  needsSetup: boolean
+  systemInitialized: boolean | null
   isAdmin: boolean
+  isGeneralAdmin: boolean
+  isGuardianUser: boolean
+  canAccessAdminPanel: boolean
   canManageSchools: boolean
   canManageUsers: boolean
   canManageGuardians: boolean
-  roleLabel: string
-  refreshProfile: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string) => Promise<User>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -51,59 +58,75 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<AppUser | null>(null)
-  const [schoolName, setSchoolName] = useState<string | null>(null)
-  const [needsSetup, setNeedsSetup] = useState(false)
+  const [schoolName, setSchoolName] = useState('Escola não definida')
   const [loading, setLoading] = useState(true)
+  const [systemInitialized, setSystemInitialized] = useState<boolean | null>(null)
 
-  const loadProfile = useCallback(async (nextUser: User | null) => {
-    if (!nextUser) {
-      setProfile(null)
-      setSchoolName(null)
-      setNeedsSetup(false)
-      return
-    }
+  const loadProfile = useCallback(async (uid: string) => {
+    const nextProfile = await getUserProfile(uid)
+    setProfile(nextProfile)
 
-    const userProfile = await getUserProfile(nextUser.uid)
-
-    if (!userProfile) {
-      const initialized = await getSystemInitialized()
-      setProfile(null)
-      setSchoolName(null)
-      setNeedsSetup(!initialized)
-      return
-    }
-
-    setProfile(userProfile)
-    setNeedsSetup(false)
-
-    if (userProfile.schoolId) {
-      const school = await getSchoolById(userProfile.schoolId)
-      setSchoolName(school?.tradeName || school?.name || null)
+    if (nextProfile?.schoolId) {
+      const school = await getSchoolById(nextProfile.schoolId)
+      setSchoolName(school?.tradeName || school?.name || 'Escola não definida')
     } else {
-      setSchoolName(null)
+      setSchoolName('Escola não definida')
     }
+
+    return nextProfile
   }, [])
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
-      setLoading(true)
-      setUser(nextUser)
-      try {
-        await loadProfile(nextUser)
-      } finally {
-        setLoading(false)
-      }
-    })
-    return unsubscribe
+  const refreshProfile = useCallback(async () => {
+    if (!auth.currentUser) {
+      setProfile(null)
+      setSchoolName('Escola não definida')
+      return
+    }
+    await loadProfile(auth.currentUser.uid)
+    setSystemInitialized(await getSystemInitialized())
   }, [loadProfile])
 
-  const refreshProfile = useCallback(async () => {
-    await loadProfile(user)
-  }, [loadProfile, user])
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      void (async () => {
+        setLoading(true)
+        setUser(nextUser)
+
+        try {
+          const initialized = await getSystemInitialized()
+          setSystemInitialized(initialized)
+
+          if (nextUser) {
+            await loadProfile(nextUser.uid)
+          } else {
+            setProfile(null)
+            setSchoolName('Escola não definida')
+          }
+        } catch {
+          setProfile(null)
+          setSchoolName('Escola não definida')
+          setSystemInitialized(null)
+        } finally {
+          setLoading(false)
+        }
+      })()
+    })
+
+    return unsubscribe
+  }, [loadProfile])
 
   const login = useCallback(async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password)
+    } catch (error) {
+      throw new Error(getAuthErrorMessage(error))
+    }
+  }, [])
+
+  const register = useCallback(async (email: string, password: string) => {
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+      return credential.user
     } catch (error) {
       throw new Error(getAuthErrorMessage(error))
     }
@@ -131,27 +154,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       schoolName,
       loading,
-      needsSetup,
-      isAdmin: isAdmin(profile),
-      canManageSchools: canManageSchools(profile),
-      canManageUsers: canManageUsers(profile),
-      canManageGuardians: canManageGuardians(profile),
-      roleLabel: profile ? roleLabel(profile.role) : 'Sem perfil',
-      refreshProfile,
+      systemInitialized,
+      isAdmin: isAdminFn(profile),
+      isGeneralAdmin: isGeneralAdminFn(profile),
+      isGuardianUser: isGuardianUserFn(profile),
+      canAccessAdminPanel: canAccessAdminPanelFn(profile),
+      canManageSchools: canManageSchoolsFn(profile),
+      canManageUsers: canManageUsersFn(profile),
+      canManageGuardians: canManageGuardiansFn(profile),
       login,
+      register,
       logout,
       resetPassword,
+      refreshProfile,
     }),
     [
       user,
       profile,
       schoolName,
       loading,
-      needsSetup,
-      refreshProfile,
+      systemInitialized,
       login,
+      register,
       logout,
       resetPassword,
+      refreshProfile,
     ],
   )
 
@@ -166,10 +193,9 @@ export function useAuth() {
   return context
 }
 
-export function useRequireActiveProfile() {
-  const auth = useAuth()
-  return {
-    ...auth,
-    isActive: isActiveProfile(auth.profile),
-  }
+export function useAccessLabel() {
+  const { profile } = useAuth()
+  if (!profile) return 'Sem perfil'
+  if (!isActiveProfile(profile)) return 'Inativo'
+  return roleLabel(profile.role)
 }

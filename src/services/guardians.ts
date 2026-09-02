@@ -6,11 +6,14 @@ import {
   orderBy,
   query,
   updateDoc,
+  where,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { guardiansCollection, withTimestamps } from '../lib/firestore'
+import { isGeneralAdmin } from '../lib/permissions'
 import type { Guardian, GuardianInput } from '../types/guardian'
 import type { EntityStatus } from '../types/common'
+import type { AppUser } from '../types/user'
 
 function mapGuardian(id: string, data: Record<string, unknown>): Guardian {
   return {
@@ -22,6 +25,7 @@ function mapGuardian(id: string, data: Record<string, unknown>): Guardian {
     email: String(data.email ?? ''),
     linkType: (data.linkType as Guardian['linkType']) ?? 'outro',
     schoolId: String(data.schoolId ?? ''),
+    userId: String(data.userId ?? ''),
     status: (data.status as EntityStatus) ?? 'ativo',
     createdAt: (data.createdAt as Guardian['createdAt']) ?? null,
     updatedAt: (data.updatedAt as Guardian['updatedAt']) ?? null,
@@ -31,6 +35,19 @@ function mapGuardian(id: string, data: Record<string, unknown>): Guardian {
 export async function listGuardians(): Promise<Guardian[]> {
   const snap = await getDocs(query(guardiansCollection, orderBy('name')))
   return snap.docs.map((item) => mapGuardian(item.id, item.data()))
+}
+
+export async function listGuardiansForProfile(profile: AppUser): Promise<Guardian[]> {
+  if (isGeneralAdmin(profile)) {
+    return listGuardians()
+  }
+
+  const snap = await getDocs(
+    query(guardiansCollection, where('schoolId', '==', profile.schoolId)),
+  )
+  return snap.docs
+    .map((item) => mapGuardian(item.id, item.data()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 }
 
 export async function getGuardianById(id: string): Promise<Guardian | null> {

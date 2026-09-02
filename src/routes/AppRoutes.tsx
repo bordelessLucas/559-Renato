@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '../contexts/AuthContext'
 import { ToastProvider } from '../components/ui/Toast'
@@ -9,6 +8,7 @@ import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { SetupPage } from '../pages/SetupPage'
 import { NoAccessPage } from '../pages/NoAccessPage'
+import { FirstAccessPage } from '../pages/FirstAccessPage'
 import { SchoolsPage } from '../pages/schools/SchoolsPage'
 import { SchoolFormPage } from '../pages/schools/SchoolFormPage'
 import { SchoolDetailPage } from '../pages/schools/SchoolDetailPage'
@@ -18,22 +18,8 @@ import { UserDetailPage } from '../pages/users/UserDetailPage'
 import { GuardiansPage } from '../pages/guardians/GuardiansPage'
 import { GuardianFormPage } from '../pages/guardians/GuardianFormPage'
 import { GuardianDetailPage } from '../pages/guardians/GuardianDetailPage'
-import { ProtectedRoute, SetupRoute } from './ProtectedRoute'
-import { useAuth } from '../contexts/AuthContext'
-import { PageSkeleton } from '../components/ui/Skeleton'
-
-function AuthenticatedOnly({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth()
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <PageSkeleton />
-      </div>
-    )
-  }
-  if (!user) return <Navigate to="/login" replace />
-  return children
-}
+import { GuardianHomePage } from '../pages/GuardianHomePage'
+import { ProtectedRoute } from './ProtectedRoute'
 
 export function AppRoutes() {
   return (
@@ -44,24 +30,16 @@ export function AppRoutes() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
-
-            <Route element={<SetupRoute />}>
-              <Route path="/app/setup" element={<SetupPage />} />
-            </Route>
-
-            <Route
-              path="/app/sem-acesso"
-              element={
-                <AuthenticatedOnly>
-                  <NoAccessPage />
-                </AuthenticatedOnly>
-              }
-            />
+            <Route path="/primeiro-acesso" element={<FirstAccessPage />} />
 
             <Route element={<ProtectedRoute />}>
+              <Route path="/setup" element={<SetupPage />} />
+              <Route path="/sem-acesso" element={<NoAccessPage />} />
+
               <Route path="/app" element={<AdminLayout />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="responsavel" element={<GuardianHomePage />} />
 
                 <Route path="escolas" element={<SchoolsPage />} />
                 <Route path="escolas/nova" element={<SchoolFormPage />} />

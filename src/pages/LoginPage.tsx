@@ -6,9 +6,10 @@ import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardFooter, CardHeader } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Spinner } from '../components/ui/Spinner'
+import { isActiveProfile } from '../lib/permissions'
 
 export function LoginPage() {
-  const { user, loading: authLoading, login } = useAuth()
+  const { user, profile, loading: authLoading, systemInitialized, login } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -18,7 +19,7 @@ export function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
   const [submitting, setSubmitting] = useState(false)
 
-  if (authLoading) {
+  if (authLoading || systemInitialized === null) {
     return (
       <AuthLayout>
         <div className="flex justify-center py-16">
@@ -28,8 +29,16 @@ export function LoginPage() {
     )
   }
 
-  if (user) {
+  if (user && profile && isActiveProfile(profile)) {
     return <Navigate to="/app/dashboard" replace />
+  }
+
+  if (user && !systemInitialized) {
+    return <Navigate to="/primeiro-acesso" replace />
+  }
+
+  if (user && (!profile || !isActiveProfile(profile))) {
+    return <Navigate to="/sem-acesso" replace />
   }
 
   const validate = () => {
@@ -132,9 +141,15 @@ export function LoginPage() {
           <Link to="/recuperar-senha" className="font-medium text-brand-700 hover:text-brand-800">
             Esqueci minha senha
           </Link>
-          <Link to="/" className="text-ink-muted hover:text-ink">
-            Voltar para a home
-          </Link>
+          {!systemInitialized ? (
+            <Link to="/primeiro-acesso" className="font-medium text-brand-700 hover:text-brand-800">
+              Primeiro acesso
+            </Link>
+          ) : (
+            <Link to="/" className="text-ink-muted hover:text-ink">
+              Voltar para a home
+            </Link>
+          )}
         </CardFooter>
       </Card>
     </AuthLayout>

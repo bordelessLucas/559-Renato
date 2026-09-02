@@ -6,12 +6,14 @@ import {
   query,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore'
 import { deleteApp, initializeApp } from 'firebase/app'
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth'
 import { app, db } from '../lib/firebase'
 import { usersCollection, withTimestamps } from '../lib/firestore'
 import { getAuthErrorMessage } from '../lib/auth-errors'
+import { isGeneralAdmin, normalizeRole } from '../lib/permissions'
 import type { AppUser, AppUserInput } from '../types/user'
 import type { EntityStatus } from '../types/common'
 
@@ -22,7 +24,7 @@ function mapUser(id: string, data: Record<string, unknown>): AppUser {
     email: String(data.email ?? ''),
     phone: String(data.phone ?? ''),
     schoolId: String(data.schoolId ?? ''),
-    role: (data.role as AppUser['role']) ?? 'operador',
+    role: normalizeRole(String(data.role ?? 'operador')),
     status: (data.status as EntityStatus) ?? 'ativo',
     createdAt: (data.createdAt as AppUser['createdAt']) ?? null,
     updatedAt: (data.updatedAt as AppUser['updatedAt']) ?? null,
@@ -38,6 +40,19 @@ export async function getUserProfile(uid: string): Promise<AppUser | null> {
 export async function listUsers(): Promise<AppUser[]> {
   const snap = await getDocs(query(usersCollection, orderBy('name')))
   return snap.docs.map((item) => mapUser(item.id, item.data()))
+}
+
+export async function listUsersForProfile(profile: AppUser): Promise<AppUser[]> {
+  if (isGeneralAdmin(profile)) {
+    return listUsers()
+  }
+
+  const snap = await getDocs(
+    query(usersCollection, where('schoolId', '==', profile.schoolId)),
+  )
+  return snap.docs
+    .map((item) => mapUser(item.id, item.data()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 }
 
 export async function createAdminUserAccount(params: {

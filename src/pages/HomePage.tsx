@@ -42,7 +42,7 @@ export function HomePage() {
               Uma plataforma simples para a escola registrar movimentações, comunicar responsáveis
               e acompanhar a operação do dia a dia.
             </p>
-            <div className="mt-8 flex justify-center">
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/login">
                 <Button size="lg">Entrar no sistema</Button>
               </Link>

@@ -1,6 +1,10 @@
 export type EntityStatus = 'ativo' | 'inativo'
 
-export type UserRole = 'administrador' | 'operador'
+export type UserRole =
+  | 'administrador_geral'
+  | 'administrador_escola'
+  | 'operador'
+  | 'responsavel'
 
 export type GuardianLinkType = 'pai' | 'mae' | 'responsavel_legal' | 'outro'
 
@@ -11,8 +15,10 @@ export const BRAZILIAN_STATES = [
 ] as const
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
-  administrador: 'Administrador',
+  administrador_geral: 'Administrador geral',
+  administrador_escola: 'Administrador da escola',
   operador: 'Operador',
+  responsavel: 'Responsável',
 }
 
 export const GUARDIAN_LINK_LABELS: Record<GuardianLinkType, string> = {

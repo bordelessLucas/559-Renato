@@ -17,7 +17,7 @@ export async function bootstrapSystem(params: {
     email: params.email.trim().toLowerCase(),
     phone: params.phone,
     schoolId,
-    role: 'administrador',
+    role: 'administrador_geral',
     status: 'ativo',
   })
 

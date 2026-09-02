@@ -17,12 +17,29 @@ service cloud.firestore {
       return hasProfile() && userDoc().status == 'ativo';
     }
 
-    function isAdmin() {
-      return isActiveUser() && userDoc().role == 'administrador';
+    function role() {
+      return userDoc().role;
+    }
+
+    // Compatível com perfil legado "administrador"
+    function isGeneralAdmin() {
+      return isActiveUser() && (role() == 'administrador_geral' || role() == 'administrador');
+    }
+
+    function isSchoolAdmin() {
+      return isActiveUser() && role() == 'administrador_escola';
     }
 
     function isOperator() {
-      return isActiveUser() && userDoc().role == 'operador';
+      return isActiveUser() && role() == 'operador';
+    }
+
+    function isGuardian() {
+      return isActiveUser() && role() == 'responsavel';
+    }
+
+    function isStaff() {
+      return isGeneralAdmin() || isSchoolAdmin() || isOperator();
     }
 
     function sameSchool(schoolId) {
@@ -34,22 +51,45 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/settings/system).data.initialized == true;
     }
 
+    function validRole(value) {
+      return value in [
+        'administrador_geral',
+        'administrador_escola',
+        'operador',
+        'responsavel',
+        'administrador'
+      ];
+    }
+
+    function canAssignRole(value) {
+      return isGeneralAdmin()
+        || (isSchoolAdmin() && value in ['operador', 'responsavel']);
+    }
+
     match /settings/system {
-      allow read: if signedIn();
+      allow read: if true;
       allow create: if signedIn() && !systemInitialized()
-        && request.resource.data.initialized == true;
-      allow update: if isAdmin();
+        && request.resource.data.initialized == true
+        && request.resource.data.firstAdminUid == request.auth.uid;
+      allow update: if isGeneralAdmin();
     }
 
     match /schools/{schoolId} {
-      allow read: if isAdmin() || (isOperator() && sameSchool(schoolId));
-      allow create: if (signedIn() && !systemInitialized()) || isAdmin();
-      allow update: if isAdmin();
+      allow read: if isGeneralAdmin()
+        || (isStaff() && sameSchool(schoolId))
+        || (isGuardian() && sameSchool(schoolId));
+
+      allow create: if (signedIn() && !systemInitialized()) || isGeneralAdmin();
+
+      allow update: if isGeneralAdmin()
+        || (isSchoolAdmin() && sameSchool(schoolId));
+
       allow delete: if false;
     }
 
     match /users/{userId} {
-      allow read: if isAdmin()
+      allow read: if isGeneralAdmin()
+        || (isSchoolAdmin() && resource.data.schoolId == userDoc().schoolId)
         || (isOperator() && resource.data.schoolId == userDoc().schoolId)
         || (signedIn() && request.auth.uid == userId);
 
@@ -57,11 +97,21 @@ service cloud.firestore {
         (signedIn()
           && !systemInitialized()
           && request.auth.uid == userId
-          && request.resource.data.role == 'administrador'
+          && request.resource.data.role in ['administrador_geral', 'administrador']
           && request.resource.data.status == 'ativo')
-        || isAdmin();
+        || (canAssignRole(request.resource.data.role)
+          && request.resource.data.schoolId is string
+          && request.resource.data.schoolId.size() > 0
+          && validRole(request.resource.data.role)
+          && (isGeneralAdmin()
+            || request.resource.data.schoolId == userDoc().schoolId));
 
-      allow update: if isAdmin()
+      allow update: if isGeneralAdmin()
+        || (isSchoolAdmin()
+          && resource.data.schoolId == userDoc().schoolId
+          && request.resource.data.schoolId == resource.data.schoolId
+          && request.resource.data.role in ['operador', 'responsavel', 'administrador_escola']
+          && !(resource.data.role in ['administrador_geral', 'administrador']))
         || (signedIn()
           && request.auth.uid == userId
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -71,17 +121,19 @@ service cloud.firestore {
     }
 
     match /guardians/{guardianId} {
-      allow read: if isAdmin()
-        || (isOperator() && resource.data.schoolId == userDoc().schoolId);
+      allow read: if isGeneralAdmin()
+        || ((isSchoolAdmin() || isOperator()) && resource.data.schoolId == userDoc().schoolId)
+        || (isGuardian() && resource.data.userId == request.auth.uid);
 
-      allow create: if isAdmin()
+      allow create: if (isGeneralAdmin() || isSchoolAdmin())
         && request.resource.data.schoolId is string
-        && request.resource.data.schoolId.size() > 0;
+        && request.resource.data.schoolId.size() > 0
+        && request.resource.data.status in ['ativo', 'inativo']
+        && (isGeneralAdmin() || request.resource.data.schoolId == userDoc().schoolId);
 
-      allow update: if isAdmin()
-        && (!('schoolId' in request.resource.data)
-          || request.resource.data.schoolId == resource.data.schoolId
-          || isAdmin());
+      allow update: if (isGeneralAdmin() || isSchoolAdmin())
+        && request.resource.data.schoolId == resource.data.schoolId
+        && (isGeneralAdmin() || resource.data.schoolId == userDoc().schoolId);
 
       allow delete: if false;
     }

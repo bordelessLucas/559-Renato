@@ -10,15 +10,10 @@ Sistema de gestão e controle de entrada e saída de alunos.
 - Firebase (Auth, Firestore, Storage, Analytics)
 - React Router
 
-## Sprint 0
+## Sprints
 
-Fundação visual e de navegação:
-
-- Home pública
-- Login com Firebase Authentication
-- Recuperação de senha
-- Layout administrativo (sidebar + topbar)
-- Design system reutilizável
+- **Sprint 0** — Layout, Home, Login e Design System
+- **Sprint 1** — Escolas, usuários administrativos e responsáveis
 
 ## Desenvolvimento
 
@@ -29,17 +24,36 @@ npm run dev
 
 Configure as variáveis em `.env` a partir de `.env.example`.
 
+### Firebase Security Rules
+
+Publique as regras em `firestore.rules`:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+### Primeiro acesso
+
+1. Habilite Email/Password no Firebase Authentication
+2. Acesse `/primeiro-acesso`
+3. Crie a primeira escola e o administrador
+
 ## Estrutura
 
 ```
 src/
-├── components/
-│   ├── ui/           # Design system
-│   ├── layout/       # Sidebar, topbar, page header
-│   └── feedback/     # Empty/Error states
-├── layouts/          # Public, Auth, Admin
-├── pages/            # Home, Login, ForgotPassword, Dashboard
-├── contexts/         # Auth
-├── routes/           # Rotas e proteção
-└── lib/              # Firebase e utilitários
+├── components/ui|layout|forms|feedback
+├── pages/schools|users|guardians
+├── services/
+├── types/
+├── contexts/
+├── layouts/
+└── routes/
 ```
+
+## Coleções Firestore
+
+- `schools`
+- `users` (doc id = Firebase Auth uid)
+- `guardians`
+- `settings/system` (flag de bootstrap)

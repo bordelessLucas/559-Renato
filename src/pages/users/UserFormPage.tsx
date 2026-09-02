@@ -14,8 +14,9 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { RequirePermission } from '../../routes/RequirePermission'
 import { createAdminUserAccount, getUserProfile, updateUser } from '../../services/users'
-import { listSchools } from '../../services/schools'
+import { listSchoolsForProfile } from '../../services/schools'
 import type { School } from '../../types/school'
+import { creatableRolesFor, canCreateRole } from '../../lib/permissions'
 import type { UserRole } from '../../types/common'
 import { USER_ROLE_LABELS } from '../../types/common'
 import { isValidEmail, maskPhone } from '../../lib/masks'
@@ -27,6 +28,9 @@ export function UserFormPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
+  const roleOptions = creatableRolesFor(profile)
+  const defaultRole = roleOptions.includes('operador') ? 'operador' : roleOptions[0] ?? 'operador'
+
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -37,7 +41,7 @@ export function UserFormPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [schoolId, setSchoolId] = useState('')
-  const [role, setRole] = useState<UserRole>('operador')
+  const [role, setRole] = useState<UserRole>(defaultRole)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
@@ -46,7 +50,7 @@ export function UserFormPage() {
       setLoading(true)
       setError('')
       try {
-        const schoolList = await listSchools()
+        const schoolList = await listSchoolsForProfile(profile!)
         const activeSchools = schoolList.filter((school) => school.status === 'ativo')
         setSchools(activeSchools)
         if (!isEdit && profile?.schoolId) {
@@ -64,6 +68,9 @@ export function UserFormPage() {
           setPhone(user.phone)
           setSchoolId(user.schoolId)
           setRole(user.role)
+          if (!creatableRolesFor(profile).includes(user.role)) {
+            // mantém o perfil atual mesmo se o editor não puder criá-lo
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar formulário.')
@@ -81,6 +88,7 @@ export function UserFormPage() {
     else if (!isValidEmail(email)) next.email = 'E-mail inválido.'
     if (!schoolId) next.schoolId = 'Selecione a escola.'
     if (!role) next.role = 'Selecione o perfil.'
+    else if (!canCreateRole(profile, role)) next.role = 'Você não pode atribuir este perfil.'
     if (!isEdit) {
       if (!password) next.password = 'Informe uma senha inicial.'
       else if (password.length < 6) next.password = 'A senha deve ter ao menos 6 caracteres.'
@@ -196,10 +204,10 @@ export function UserFormPage() {
                   onChange={(e) => setRole(e.target.value as UserRole)}
                   error={errors.role}
                   disabled={submitting}
-                  options={[
-                    { value: 'administrador', label: USER_ROLE_LABELS.administrador },
-                    { value: 'operador', label: USER_ROLE_LABELS.operador },
-                  ]}
+                  options={(roleOptions.includes(role) ? roleOptions : [...roleOptions, role]).map((item) => ({
+                    value: item,
+                    label: USER_ROLE_LABELS[item],
+                  }))}
                 />
                 {!isEdit && (
                   <div className="space-y-1.5">

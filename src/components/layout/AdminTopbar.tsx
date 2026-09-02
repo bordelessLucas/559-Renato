@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAccessLabel, useAuth } from '../../contexts/AuthContext'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -12,13 +12,14 @@ interface AdminTopbarProps {
 }
 
 export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
-  const { user, profile, schoolName, roleLabel, logout } = useAuth()
+  const { user, profile, schoolName, logout } = useAuth()
+  const accessType = useAccessLabel()
   const { toast } = useToast()
   const navigate = useNavigate()
   const [confirmLogout, setConfirmLogout] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
-  const displayName = profile?.name || user?.displayName || user?.email?.split('@')[0] || 'Usuário'
+  const displayName = profile?.name || user?.email?.split('@')[0] || 'Usuário'
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -54,16 +55,14 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
             </svg>
           </Button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink">
-              {schoolName || 'Escola não definida'}
-            </p>
+            <p className="truncate text-sm font-semibold text-ink">{schoolName}</p>
             <p className="truncate text-xs text-ink-muted">Área administrativa</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <Badge variant="brand" className="hidden sm:inline-flex">
-            {roleLabel}
+            {accessType}
           </Badge>
 
           <Dropdown

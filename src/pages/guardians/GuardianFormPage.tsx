@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { RequirePermission } from '../../routes/RequirePermission'
 import { createGuardian, getGuardianById, updateGuardian } from '../../services/guardians'
-import { listSchools } from '../../services/schools'
+import { listSchoolsForProfile } from '../../services/schools'
 import type { School } from '../../types/school'
 import type { GuardianLinkType } from '../../types/common'
 import { GUARDIAN_LINK_LABELS } from '../../types/common'
@@ -46,7 +46,7 @@ export function GuardianFormPage() {
       setLoading(true)
       setError('')
       try {
-        const schoolList = await listSchools()
+        const schoolList = await listSchoolsForProfile(profile!)
         setSchools(schoolList.filter((school) => school.status === 'ativo'))
         if (!isEdit && profile?.schoolId) setSchoolId(profile.schoolId)
 
@@ -99,6 +99,7 @@ export function GuardianFormPage() {
         linkType,
         schoolId,
         status: 'ativo' as const,
+        userId: '',
       }
 
       if (isEdit && id) {

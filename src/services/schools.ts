@@ -9,8 +9,10 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { schoolsCollection, withTimestamps } from '../lib/firestore'
+import { isGeneralAdmin } from '../lib/permissions'
 import type { School, SchoolInput } from '../types/school'
 import type { EntityStatus } from '../types/common'
+import type { AppUser } from '../types/user'
 
 function mapSchool(id: string, data: Record<string, unknown>): School {
   return {
@@ -32,6 +34,17 @@ function mapSchool(id: string, data: Record<string, unknown>): School {
 export async function listSchools(): Promise<School[]> {
   const snap = await getDocs(query(schoolsCollection, orderBy('name')))
   return snap.docs.map((item) => mapSchool(item.id, item.data()))
+}
+
+export async function listSchoolsForProfile(profile: AppUser): Promise<School[]> {
+  if (isGeneralAdmin(profile)) {
+    return listSchools()
+  }
+
+  if (!profile.schoolId) return []
+
+  const school = await getSchoolById(profile.schoolId)
+  return school ? [school] : []
 }
 
 export async function getSchoolById(id: string): Promise<School | null> {

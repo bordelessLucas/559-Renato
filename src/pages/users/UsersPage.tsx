@@ -28,7 +28,7 @@ import { USER_ROLE_LABELS } from '../../types/common'
 import { canAccessSchoolScoped } from '../../lib/permissions'
 
 export function UsersPage() {
-  const { profile, canManageUsers, isAdmin } = useAuth()
+  const { profile, canManageUsers, isGeneralAdmin } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -124,7 +124,7 @@ export function UsersPage() {
         searchPlaceholder="Buscar por nome ou e-mail..."
         status={status}
         onStatusChange={setStatus}
-        showSchoolFilter={isAdmin}
+        showSchoolFilter={isGeneralAdmin}
         schoolId={schoolId}
         onSchoolChange={setSchoolId}
         schoolOptions={schools.map((school) => ({
@@ -167,7 +167,7 @@ export function UsersPage() {
                   </TableCell>
                   <TableCell>{schoolMap[user.schoolId] || '—'}</TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'administrador' ? 'brand' : 'neutral'}>
+                    <Badge variant={user.role === 'operador' || user.role === 'responsavel' ? 'neutral' : 'brand'}>
                       {USER_ROLE_LABELS[user.role]}
                     </Badge>
                   </TableCell>

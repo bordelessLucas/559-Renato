@@ -24,9 +24,11 @@ export function getAuthErrorMessage(error: unknown): string {
     case 'auth/invalid-action-code':
       return 'O link de recuperação é inválido ou expirou.'
     case 'auth/email-already-in-use':
-      return 'Já existe uma conta com este e-mail.'
+      return 'Este e-mail já está em uso.'
     case 'auth/weak-password':
       return 'A senha é muito fraca. Use ao menos 6 caracteres.'
+    case 'auth/operation-not-allowed':
+      return 'Login por e-mail/senha não está habilitado no Firebase.'
     default:
       return 'Não foi possível concluir a operação. Tente novamente.'
   }

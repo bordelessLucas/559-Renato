@@ -2,13 +2,57 @@ import { NavLink } from 'react-router-dom'
 import { adminNavItems } from '../../config/navigation'
 import { BrandMark } from './BrandMark'
 import { cn } from '../../lib/cn'
+import { useAuth } from '../../contexts/AuthContext'
+import { isGuardianUser, isGeneralAdmin, isOperator, isSchoolAdmin } from '../../lib/permissions'
 
 interface AdminSidebarProps {
   open: boolean
   onClose: () => void
 }
 
+function canSeeNavItem(itemId: string, profile: ReturnType<typeof useAuth>['profile']) {
+  if (!profile) return false
+
+  if (isGuardianUser(profile)) {
+    return itemId === 'guardian-home'
+  }
+
+  if (isOperator(profile)) {
+    return ['dashboard', 'students', 'movements', 'attendance'].includes(itemId)
+  }
+
+  if (isSchoolAdmin(profile)) {
+    return [
+      'dashboard',
+      'schools',
+      'students',
+      'guardians',
+      'users',
+      'movements',
+      'attendance',
+      'alerts',
+      'notifications',
+    ].includes(itemId)
+  }
+
+  if (isGeneralAdmin(profile)) {
+    return true
+  }
+
+  return itemId === 'dashboard'
+}
+
 export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
+  const { profile } = useAuth()
+
+  const guardianItems = [
+    { id: 'guardian-home', label: 'Minha área', path: '/app/responsavel', enabled: true },
+  ]
+
+  const items = isGuardianUser(profile)
+    ? guardianItems
+    : adminNavItems.filter((item) => canSeeNavItem(item.id, profile))
+
   return (
     <>
       <button
@@ -33,7 +77,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Menu principal">
           <ul className="space-y-1">
-            {adminNavItems.map((item) => (
+            {items.map((item) => (
               <li key={item.id}>
                 {item.enabled ? (
                   <NavLink
