@@ -100,6 +100,7 @@ export function GuardianFormPage() {
         schoolId,
         status: 'ativo' as const,
         userId: '',
+        isDemo: false,
       }
 
       if (isEdit && id) {
@@ -140,7 +141,7 @@ export function GuardianFormPage() {
         <div>
           <PageHeader
             title={isEdit ? 'Editar responsável' : 'Novo responsável'}
-            description="Cadastre responsáveis vinculados a uma escola. A associação com alunos será feita na próxima sprint."
+            description="Cadastre responsáveis vinculados a uma escola. Os alunos serão associados no cadastro de alunos."
             action={
               <Link to={isEdit && id ? `/app/responsaveis/${id}` : '/app/responsaveis'}>
                 <Button variant="outline">Cancelar</Button>

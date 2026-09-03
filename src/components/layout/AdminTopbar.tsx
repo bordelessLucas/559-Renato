@@ -6,6 +6,15 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { Dropdown } from '../ui/Dropdown'
 import { useToast } from '../ui/Toast'
+import { isGuardianUser, isGeneralAdmin, isOperator, isSchoolAdmin } from '../../lib/permissions'
+
+function areaLabel(profile: ReturnType<typeof useAuth>['profile']) {
+  if (isGuardianUser(profile)) return 'Área do responsável'
+  if (isOperator(profile)) return 'Área operacional'
+  if (isSchoolAdmin(profile)) return 'Administração da escola'
+  if (isGeneralAdmin(profile)) return 'Administração geral'
+  return 'Área autenticada'
+}
 
 interface AdminTopbarProps {
   onMenuClick: () => void
@@ -56,7 +65,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
           </Button>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink">{schoolName}</p>
-            <p className="truncate text-xs text-ink-muted">Área administrativa</p>
+            <p className="truncate text-xs text-ink-muted">{areaLabel(profile)}</p>
           </div>
         </div>
 
@@ -93,7 +102,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
       <ConfirmDialog
         open={confirmLogout}
         title="Encerrar sessão?"
-        description="Você precisará entrar novamente para acessar a área administrativa."
+        description="Você precisará entrar novamente para acessar o sistema."
         confirmLabel="Sair"
         variant="danger"
         loading={loggingOut}

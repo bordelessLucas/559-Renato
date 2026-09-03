@@ -19,6 +19,12 @@ import { GuardiansPage } from '../pages/guardians/GuardiansPage'
 import { GuardianFormPage } from '../pages/guardians/GuardianFormPage'
 import { GuardianDetailPage } from '../pages/guardians/GuardianDetailPage'
 import { GuardianHomePage } from '../pages/GuardianHomePage'
+import { GuardianStudentFormPage } from '../pages/guardian/GuardianStudentFormPage'
+import { GuardianStudentDetailPage } from '../pages/guardian/GuardianStudentDetailPage'
+import { StudentsPage } from '../pages/students/StudentsPage'
+import { StudentFormPage } from '../pages/students/StudentFormPage'
+import { StudentDetailPage } from '../pages/students/StudentDetailPage'
+import { PublicSignupPage } from '../pages/public/PublicSignupPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
 export function AppRoutes() {
@@ -31,6 +37,7 @@ export function AppRoutes() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
             <Route path="/primeiro-acesso" element={<FirstAccessPage />} />
+            <Route path="/cadastro/:schoolId" element={<PublicSignupPage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/setup" element={<SetupPage />} />
@@ -40,6 +47,9 @@ export function AppRoutes() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="responsavel" element={<GuardianHomePage />} />
+                <Route path="responsavel/alunos/novo" element={<GuardianStudentFormPage />} />
+                <Route path="responsavel/alunos/:id" element={<GuardianStudentDetailPage />} />
+                <Route path="responsavel/alunos/:id/editar" element={<GuardianStudentFormPage />} />
 
                 <Route path="escolas" element={<SchoolsPage />} />
                 <Route path="escolas/nova" element={<SchoolFormPage />} />
@@ -55,6 +65,11 @@ export function AppRoutes() {
                 <Route path="responsaveis/novo" element={<GuardianFormPage />} />
                 <Route path="responsaveis/:id" element={<GuardianDetailPage />} />
                 <Route path="responsaveis/:id/editar" element={<GuardianFormPage />} />
+
+                <Route path="alunos" element={<StudentsPage />} />
+                <Route path="alunos/novo" element={<StudentFormPage />} />
+                <Route path="alunos/:id" element={<StudentDetailPage />} />
+                <Route path="alunos/:id/editar" element={<StudentFormPage />} />
               </Route>
             </Route>
 

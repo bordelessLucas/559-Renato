@@ -53,32 +53,32 @@ const firebaseConfig = {
 const PROFILES = [
   {
     key: 'geral',
-    email: 'admin.geral@renato.app',
-    password: 'Renato@Geral2026!',
+    email: 'admin@admin.com',
+    password: 'borderless',
     name: 'Administrador Geral',
     phone: '(11) 90000-0001',
     role: 'administrador_geral',
   },
   {
     key: 'escola',
-    email: 'admin.escola@renato.app',
-    password: 'Renato@Escola2026!',
+    email: 'escola@escola.com',
+    password: 'borderless',
     name: 'Administrador da Escola',
     phone: '(11) 90000-0002',
     role: 'administrador_escola',
   },
   {
     key: 'operador',
-    email: 'operador@renato.app',
-    password: 'Renato@Oper2026!',
+    email: 'operador@operador.com',
+    password: 'borderless',
     name: 'Operador da Escola',
     phone: '(11) 90000-0003',
     role: 'operador',
   },
   {
     key: 'responsavel',
-    email: 'responsavel@renato.app',
-    password: 'Renato@Resp2026!',
+    email: 'responsavel@responsavel.com',
+    password: 'borderless',
     name: 'Responsável Demo',
     phone: '(11) 90000-0004',
     role: 'responsavel',
@@ -117,6 +117,32 @@ async function ensureAuthUser(email, password) {
   }
 }
 
+async function signInAsGeneralAdmin(auth, db) {
+  const candidates = [
+    { email: 'admin.geral@renato.app', password: 'Renato@Geral2026!' },
+    { email: PROFILES[0].email, password: PROFILES[0].password },
+  ]
+
+  for (const candidate of candidates) {
+    try {
+      const credential = await signInWithEmailAndPassword(auth, candidate.email, candidate.password)
+      const profileSnap = await getDoc(doc(db, 'users', credential.user.uid))
+      const role = profileSnap.exists() ? String(profileSnap.data()?.role || '') : ''
+      if (role === 'administrador_geral' || role === 'administrador') {
+        console.log(`   Entrou como ${candidate.email}`)
+        return credential.user.uid
+      }
+      await signOut(auth)
+    } catch {
+      // tenta o próximo administrador conhecido
+    }
+  }
+
+  throw new Error(
+    'Não foi possível entrar com um administrador geral que já tenha perfil no Firestore.',
+  )
+}
+
 async function writeUser(db, uid, profile, schoolId) {
   await setDoc(
     doc(db, 'users', uid),
@@ -147,8 +173,11 @@ async function main() {
     console.log(`   ✓ ${profile.role}: ${profile.email} (${result.created ? 'criada' : 'já existia'})`)
   }
 
-  console.log('2) Entrando como administrador geral...')
-  await signInWithEmailAndPassword(auth, PROFILES[0].email, PROFILES[0].password)
+  const alunoAuth = await ensureAuthUser('aluno@aluno.com', 'borderless')
+  console.log(`   ✓ aluno (somente Auth, sem painel): aluno@aluno.com (${alunoAuth.created ? 'criada' : 'já existia'})`)
+
+  console.log('2) Entrando como administrador geral com permissão de escrita...')
+  await signInAsGeneralAdmin(auth, db)
 
   const systemRef = doc(db, 'settings', 'system')
   const systemSnap = await getDoc(systemRef)
@@ -217,8 +246,10 @@ async function main() {
     query(collection(db, 'guardians'), where('userId', '==', guardianUid), limit(1)),
   )
 
+  let guardianId = ''
   if (existingGuardian.empty) {
     const guardianRef = doc(collection(db, 'guardians'))
+    guardianId = guardianRef.id
     await setDoc(guardianRef, {
       name: PROFILES[3].name,
       cpf: '',
@@ -232,12 +263,41 @@ async function main() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
-    console.log(`   ✓ Guardian criado: ${guardianRef.id}`)
+    console.log(`   ✓ Guardian criado: ${guardianId}`)
   } else {
-    console.log('   ✓ Guardian já existia')
+    guardianId = existingGuardian.docs[0].id
+    await updateDoc(existingGuardian.docs[0].ref, {
+      name: PROFILES[3].name,
+      email: PROFILES[3].email,
+      phonePrimary: PROFILES[3].phone,
+      status: 'ativo',
+      schoolId,
+      updatedAt: serverTimestamp(),
+    })
+    console.log(`   ✓ Guardian já existia: ${guardianId}`)
   }
 
-  console.log('7) Marcando sistema inicializado...')
+  console.log('7) Garantindo aluno demo...')
+  const existingStudent = await getDocs(
+    query(collection(db, 'students'), where('guardianIds', 'array-contains', guardianId), limit(1)),
+  )
+
+  if (existingStudent.empty) {
+    const studentRef = doc(collection(db, 'students'))
+    await setDoc(studentRef, {
+      name: 'Aluno Demo',
+      schoolId,
+      guardianIds: [guardianId],
+      status: 'ativo',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+    console.log(`   ✓ Aluno criado: ${studentRef.id}`)
+  } else {
+    console.log(`   ✓ Aluno já existia: ${existingStudent.docs[0].id}`)
+  }
+
+  console.log('8) Marcando sistema inicializado...')
   await setDoc(
     systemRef,
     {
@@ -258,6 +318,8 @@ async function main() {
   for (const profile of PROFILES) {
     console.log(`${profile.role}|${profile.email}|${profile.password}`)
   }
+  console.log('aluno (sem painel no sistema)|aluno@aluno.com|borderless')
+  console.log('aluno (cadastro Firestore)|Aluno Demo vinculado ao responsável')
 }
 
 main().catch((error) => {

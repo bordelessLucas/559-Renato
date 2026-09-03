@@ -95,7 +95,11 @@ export function SchoolsPage() {
     <div>
       <PageHeader
         title="Escolas"
-        description="Gerencie as instituições cadastradas no sistema."
+        description={
+          canManageSchools
+            ? 'Cadastre e gerencie as instituições do sistema.'
+            : 'Consulte os dados da sua escola.'
+        }
         action={
           canManageSchools ? (
             <Button onClick={() => navigate('/app/escolas/nova')}>+ Nova escola</Button>
@@ -152,6 +156,12 @@ export function SchoolsPage() {
                     <div className="flex flex-wrap gap-2">
                       <Link to={`/app/escolas/${school.id}`} className="text-sm font-semibold text-brand-700 hover:text-brand-800">
                         Ver
+                      </Link>
+                      <Link
+                        to={`/app/escolas/${school.id}#qrcode`}
+                        className="text-sm font-semibold text-ink-muted hover:text-ink"
+                      >
+                        QR Code
                       </Link>
                       {canManageSchools && (
                         <>

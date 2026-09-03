@@ -3,12 +3,13 @@ export interface NavItem {
   label: string
   path: string
   enabled: boolean
+  end?: boolean
 }
 
 export const adminNavItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', path: '/app/dashboard', enabled: true },
+  { id: 'dashboard', label: 'Painel', path: '/app/dashboard', enabled: true },
   { id: 'schools', label: 'Escolas', path: '/app/escolas', enabled: true },
-  { id: 'students', label: 'Alunos', path: '/app/alunos', enabled: false },
+  { id: 'students', label: 'Alunos', path: '/app/alunos', enabled: true },
   { id: 'guardians', label: 'Responsáveis', path: '/app/responsaveis', enabled: true },
   { id: 'movements', label: 'Entrada e Saída', path: '/app/movimentacoes', enabled: false },
   { id: 'attendance', label: 'Presença', path: '/app/presenca', enabled: false },

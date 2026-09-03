@@ -108,7 +108,11 @@ export function GuardiansPage() {
     <div>
       <PageHeader
         title="Responsáveis"
-        description="Gerencie os responsáveis cadastrados nas escolas."
+        description={
+          isGeneralAdmin
+            ? 'Gerencie os responsáveis cadastrados nas escolas.'
+            : 'Gerencie os responsáveis da sua escola.'
+        }
         action={
           canManageGuardians ? (
             <Button onClick={() => navigate('/app/responsaveis/novo')}>+ Novo responsável</Button>

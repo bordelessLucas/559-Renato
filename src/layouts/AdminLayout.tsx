@@ -7,10 +7,14 @@ export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-dvh bg-surface-muted">
-      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div className="flex min-h-dvh bg-surface-muted print:bg-white">
+      <div className="print:hidden">
+        <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
+        <div className="print:hidden">
+          <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
+        </div>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />

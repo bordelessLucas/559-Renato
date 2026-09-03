@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "seed:profiles": "node scripts/seed-profiles.mjs"
+    "seed:profiles": "node scripts/seed-profiles.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "seed:demo:clear": "node scripts/clear-demo.mjs"
   },
   "dependencies": {
     "firebase": "^12.18.0",

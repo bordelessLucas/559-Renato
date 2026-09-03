@@ -11,6 +11,7 @@ export interface Guardian {
   linkType: GuardianLinkType
   schoolId: string
   userId: string
+  isDemo: boolean
   status: EntityStatus
   createdAt: Timestamp | null
   updatedAt: Timestamp | null

@@ -38,8 +38,9 @@ export function ProtectedRoute() {
   }
 
   if (isGuardianUser(profile)) {
+    const path = location.pathname
     const allowed =
-      location.pathname === '/app/responsavel' || location.pathname === '/app/responsavel/'
+      path === '/app/responsavel' || path.startsWith('/app/responsavel/')
     if (!allowed) {
       return <Navigate to="/app/responsavel" replace />
     }

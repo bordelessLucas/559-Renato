@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   updateDoc,
@@ -26,6 +27,7 @@ function mapGuardian(id: string, data: Record<string, unknown>): Guardian {
     linkType: (data.linkType as Guardian['linkType']) ?? 'outro',
     schoolId: String(data.schoolId ?? ''),
     userId: String(data.userId ?? ''),
+    isDemo: Boolean(data.isDemo),
     status: (data.status as EntityStatus) ?? 'ativo',
     createdAt: (data.createdAt as Guardian['createdAt']) ?? null,
     updatedAt: (data.updatedAt as Guardian['updatedAt']) ?? null,
@@ -48,6 +50,15 @@ export async function listGuardiansForProfile(profile: AppUser): Promise<Guardia
   return snap.docs
     .map((item) => mapGuardian(item.id, item.data()))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+}
+
+export async function getGuardianByUserId(userId: string): Promise<Guardian | null> {
+  const snap = await getDocs(
+    query(guardiansCollection, where('userId', '==', userId), limit(1)),
+  )
+  if (snap.empty) return null
+  const item = snap.docs[0]
+  return mapGuardian(item.id, item.data())
 }
 
 export async function getGuardianById(id: string): Promise<Guardian | null> {

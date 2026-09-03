@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { adminNavItems } from '../../config/navigation'
+import { adminNavItems, type NavItem } from '../../config/navigation'
 import { BrandMark } from './BrandMark'
 import { cn } from '../../lib/cn'
 import { useAuth } from '../../contexts/AuthContext'
@@ -14,7 +14,7 @@ function canSeeNavItem(itemId: string, profile: ReturnType<typeof useAuth>['prof
   if (!profile) return false
 
   if (isGuardianUser(profile)) {
-    return itemId === 'guardian-home'
+    return itemId === 'guardian-home' || itemId === 'guardian-student-new'
   }
 
   if (isOperator(profile)) {
@@ -45,8 +45,9 @@ function canSeeNavItem(itemId: string, profile: ReturnType<typeof useAuth>['prof
 export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
   const { profile } = useAuth()
 
-  const guardianItems = [
-    { id: 'guardian-home', label: 'Minha área', path: '/app/responsavel', enabled: true },
+  const guardianItems: NavItem[] = [
+    { id: 'guardian-home', label: 'Meus dependentes', path: '/app/responsavel', enabled: true, end: true },
+    { id: 'guardian-student-new', label: 'Cadastrar dependente', path: '/app/responsavel/alunos/novo', enabled: true },
   ]
 
   const items = isGuardianUser(profile)
@@ -82,6 +83,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
                 {item.enabled ? (
                   <NavLink
                     to={item.path}
+                    end={item.end}
                     onClick={onClose}
                     className={({ isActive }) =>
                       cn(

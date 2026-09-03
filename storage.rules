@@ -1,0 +1,61 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveUser() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && userDoc().status == 'ativo';
+    }
+
+    function role() {
+      return userDoc().role;
+    }
+
+    function isGeneralAdmin() {
+      return isActiveUser() && (role() == 'administrador_geral' || role() == 'administrador');
+    }
+
+    function isSchoolAdmin() {
+      return isActiveUser() && role() == 'administrador_escola';
+    }
+
+    function isOperator() {
+      return isActiveUser() && role() == 'operador';
+    }
+
+    function isGuardian() {
+      return isActiveUser() && role() == 'responsavel';
+    }
+
+    function studentData(studentId) {
+      return firestore.get(/databases/(default)/documents/students/$(studentId)).data;
+    }
+
+    function sameSchool(schoolId) {
+      return isActiveUser() && userDoc().schoolId == schoolId;
+    }
+
+    match /students/{schoolId}/{studentId}/{fileName} {
+      allow read: if isGeneralAdmin()
+        || ((isSchoolAdmin() || isOperator()) && sameSchool(schoolId))
+        || (isGuardian()
+          && firestore.exists(/databases/(default)/documents/students/$(studentId))
+          && request.auth.uid in studentData(studentId).guardianUserIds);
+
+      allow write: if isGeneralAdmin()
+        || (isSchoolAdmin() && sameSchool(schoolId))
+        || (isGuardian()
+          && firestore.exists(/databases/(default)/documents/students/$(studentId))
+          && request.auth.uid in studentData(studentId).guardianUserIds
+          && sameSchool(schoolId));
+    }
+  }
+}

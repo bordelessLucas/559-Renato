@@ -16,6 +16,7 @@ import { db } from './firebase'
 export const schoolsCollection = collection(db, 'schools')
 export const usersCollection = collection(db, 'users')
 export const guardiansCollection = collection(db, 'guardians')
+export const studentsCollection = collection(db, 'students')
 export const systemSettingsRef = doc(db, 'settings', 'system')
 
 export function withTimestamps(data: DocumentData, isCreate = false) {

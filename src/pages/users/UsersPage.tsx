@@ -110,7 +110,11 @@ export function UsersPage() {
     <div>
       <PageHeader
         title="Usuários"
-        description="Gerencie usuários administrativos do sistema."
+        description={
+          isGeneralAdmin
+            ? 'Gerencie os usuários do sistema e o acesso de cada perfil.'
+            : 'Cadastre operadores e responsáveis da sua escola.'
+        }
         action={
           canManageUsers ? (
             <Button onClick={() => navigate('/app/usuarios/novo')}>+ Novo usuário</Button>

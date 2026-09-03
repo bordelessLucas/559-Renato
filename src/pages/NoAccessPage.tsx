@@ -14,7 +14,7 @@ export function NoAccessPage() {
           <p className="text-sm text-ink-muted">
             {profile?.status === 'inativo'
               ? 'Seu usuário está inativo. Contate um administrador.'
-              : 'Sua conta autenticada não possui perfil administrativo no sistema.'}
+              : 'Sua conta autenticada não possui um perfil ativo neste sistema.'}
           </p>
           <p className="text-xs text-ink-subtle">{user?.email}</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">

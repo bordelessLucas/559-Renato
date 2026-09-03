@@ -6,19 +6,19 @@ import { Card, CardBody } from '../components/ui/Card'
 const benefits = [
   {
     title: 'Controle de entrada e saída',
-    description: 'Registre movimentações com histórico claro e confiável.',
+    description: 'A escola acompanha quando cada aluno entra e sai, com histórico claro.',
   },
   {
-    title: 'Identificação por QR Code',
-    description: 'Identifique alunos de forma rápida no momento do acesso.',
+    title: 'Cadastro por QR Code',
+    description: 'O responsável escaneia o código da escola e cadastra seus dependentes.',
   },
   {
-    title: 'Comunicação com responsáveis',
-    description: 'Mantenha famílias informadas sobre entrada e saída.',
+    title: 'Aviso à família',
+    description: 'Os responsáveis recebem notificação na entrada e na saída.',
   },
   {
-    title: 'Acompanhamento administrativo',
-    description: 'Acompanhe presença, alertas e indicadores da escola.',
+    title: 'Acompanhamento da escola',
+    description: 'A administração consulta alunos, presença e a operação do dia.',
   },
 ]
 
@@ -39,8 +39,8 @@ export function HomePage() {
               Segurança e acompanhamento da entrada e saída dos alunos
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base text-ink-muted sm:text-lg">
-              Uma plataforma simples para a escola registrar movimentações, comunicar responsáveis
-              e acompanhar a operação do dia a dia.
+              Uma plataforma para a escola acompanhar a entrada e a saída, e para a família receber
+              aviso quando o dependente chegar ou sair.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/login">

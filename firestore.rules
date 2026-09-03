@@ -87,6 +87,78 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /guardians/{guardianId} {
+      allow read: if isGeneralAdmin()
+        || ((isSchoolAdmin() || isOperator()) && resource.data.schoolId == userDoc().schoolId)
+        || (isGuardian() && resource.data.userId == request.auth.uid);
+
+      allow create: if (isGeneralAdmin() || isSchoolAdmin())
+        && request.resource.data.schoolId is string
+        && request.resource.data.schoolId.size() > 0
+        && request.resource.data.status in ['ativo', 'inativo']
+        && (isGeneralAdmin() || request.resource.data.schoolId == userDoc().schoolId);
+
+      allow update: if (isGeneralAdmin() || isSchoolAdmin())
+        && request.resource.data.schoolId == resource.data.schoolId
+        && (isGeneralAdmin() || resource.data.schoolId == userDoc().schoolId);
+
+      allow delete: if isGeneralAdmin() && resource.data.isDemo == true;
+    }
+
+    match /students/{studentId} {
+      allow read: if isGeneralAdmin()
+        || ((isSchoolAdmin() || isOperator()) && resource.data.schoolId == userDoc().schoolId)
+        || (isGuardian() && request.auth.uid in resource.data.guardianUserIds);
+
+      allow create: if (isGeneralAdmin() || isSchoolAdmin())
+        && request.resource.data.schoolId is string
+        && request.resource.data.schoolId.size() > 0
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.status in ['ativo', 'inativo']
+        && request.resource.data.guardianIds is list
+        && request.resource.data.guardianIds.size() > 0
+        && (isGeneralAdmin() || request.resource.data.schoolId == userDoc().schoolId)
+        || (
+          isGuardian()
+          && request.resource.data.schoolId == userDoc().schoolId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.status == 'ativo'
+          && request.resource.data.guardianIds is list
+          && request.resource.data.guardianIds.size() == 1
+          && request.resource.data.guardianUserIds is list
+          && request.resource.data.guardianUserIds.size() == 1
+          && request.auth.uid in request.resource.data.guardianUserIds
+          && exists(/databases/$(database)/documents/guardians/$(request.resource.data.guardianIds[0]))
+          && get(/databases/$(database)/documents/guardians/$(request.resource.data.guardianIds[0])).data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/guardians/$(request.resource.data.guardianIds[0])).data.schoolId == userDoc().schoolId
+          && get(/databases/$(database)/documents/guardians/$(request.resource.data.guardianIds[0])).data.status == 'ativo'
+        );
+
+      allow update: if (isGeneralAdmin() || isSchoolAdmin())
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.guardianIds is list
+        && request.resource.data.guardianIds.size() > 0
+        && request.resource.data.status in ['ativo', 'inativo']
+        && (isGeneralAdmin()
+          || (resource.data.schoolId == userDoc().schoolId
+            && request.resource.data.schoolId == resource.data.schoolId))
+        || (
+          isGuardian()
+          && request.auth.uid in resource.data.guardianUserIds
+          && request.auth.uid in request.resource.data.guardianUserIds
+          && request.resource.data.schoolId == resource.data.schoolId
+          && request.resource.data.schoolId == userDoc().schoolId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.status in ['ativo', 'inativo']
+        );
+
+      allow delete: if isGeneralAdmin() && resource.data.isDemo == true;
+    }
+
     match /users/{userId} {
       allow read: if isGeneralAdmin()
         || (isSchoolAdmin() && resource.data.schoolId == userDoc().schoolId)
@@ -117,25 +189,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['name', 'phone', 'updatedAt']));
 
-      allow delete: if false;
-    }
-
-    match /guardians/{guardianId} {
-      allow read: if isGeneralAdmin()
-        || ((isSchoolAdmin() || isOperator()) && resource.data.schoolId == userDoc().schoolId)
-        || (isGuardian() && resource.data.userId == request.auth.uid);
-
-      allow create: if (isGeneralAdmin() || isSchoolAdmin())
-        && request.resource.data.schoolId is string
-        && request.resource.data.schoolId.size() > 0
-        && request.resource.data.status in ['ativo', 'inativo']
-        && (isGeneralAdmin() || request.resource.data.schoolId == userDoc().schoolId);
-
-      allow update: if (isGeneralAdmin() || isSchoolAdmin())
-        && request.resource.data.schoolId == resource.data.schoolId
-        && (isGeneralAdmin() || resource.data.schoolId == userDoc().schoolId);
-
-      allow delete: if false;
+      allow delete: if isGeneralAdmin() && resource.data.isDemo == true;
     }
   }
 }

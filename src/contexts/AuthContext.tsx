@@ -22,6 +22,7 @@ import { getUserProfile } from '../services/users'
 import { getSchoolById } from '../services/schools'
 import {
   canManageGuardians as canManageGuardiansFn,
+  canManageStudents as canManageStudentsFn,
   canManageSchools as canManageSchoolsFn,
   canManageUsers as canManageUsersFn,
   canAccessAdminPanel as canAccessAdminPanelFn,
@@ -46,6 +47,7 @@ interface AuthContextValue {
   canManageSchools: boolean
   canManageUsers: boolean
   canManageGuardians: boolean
+  canManageStudents: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<User>
   logout: () => Promise<void>
@@ -162,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canManageSchools: canManageSchoolsFn(profile),
       canManageUsers: canManageUsersFn(profile),
       canManageGuardians: canManageGuardiansFn(profile),
+      canManageStudents: canManageStudentsFn(profile),
       login,
       register,
       logout,

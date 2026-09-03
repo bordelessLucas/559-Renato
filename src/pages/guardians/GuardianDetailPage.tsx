@@ -7,7 +7,9 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useAuth } from '../../contexts/AuthContext'
 import { getGuardianById, setGuardianStatus } from '../../services/guardians'
 import { getSchoolById } from '../../services/schools'
+import { listStudentsByGuardianId } from '../../services/students'
 import type { Guardian } from '../../types/guardian'
+import type { Student } from '../../types/student'
 import { GUARDIAN_LINK_LABELS, type EntityStatus } from '../../types/common'
 import { canAccessSchoolScoped } from '../../lib/permissions'
 
@@ -18,6 +20,7 @@ export function GuardianDetailPage() {
   const { toast } = useToast()
 
   const [guardian, setGuardian] = useState<Guardian | null>(null)
+  const [linkedStudents, setLinkedStudents] = useState<Student[]>([])
   const [schoolName, setSchoolName] = useState('—')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -39,8 +42,12 @@ export function GuardianDetailPage() {
         return
       }
       setGuardian(data)
-      const school = await getSchoolById(data.schoolId)
+      const [school, students] = await Promise.all([
+        getSchoolById(data.schoolId),
+        listStudentsByGuardianId(data.id),
+      ])
       setSchoolName(school?.tradeName || school?.name || '—')
+      setLinkedStudents(students)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar responsável.')
     } finally {
@@ -138,6 +145,27 @@ export function GuardianDetailPage() {
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Escola</dt>
               <dd className="mt-1 text-sm text-ink">{schoolName}</dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Alunos vinculados</dt>
+              <dd className="mt-1 text-sm text-ink">
+                {linkedStudents.length === 0 ? (
+                  'Nenhum aluno vinculado.'
+                ) : (
+                  <ul className="space-y-1">
+                    {linkedStudents.map((student) => (
+                      <li key={student.id}>
+                        <Link
+                          to={`/app/alunos/${student.id}`}
+                          className="font-semibold text-brand-700 hover:text-brand-800"
+                        >
+                          {student.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </dd>
             </div>
           </dl>
         </CardBody>

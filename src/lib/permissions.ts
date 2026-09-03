@@ -74,6 +74,10 @@ export function canManageGuardians(profile: AppUser | null | undefined): boolean
   return isGeneralAdmin(profile) || isSchoolAdmin(profile)
 }
 
+export function canManageStudents(profile: AppUser | null | undefined): boolean {
+  return isGeneralAdmin(profile) || isSchoolAdmin(profile)
+}
+
 export function canCreateRole(
   actor: AppUser | null | undefined,
   targetRole: UserRole,

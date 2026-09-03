@@ -4,6 +4,7 @@ import { PageHeader } from '../../components/layout/PageHeader'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { Button, Card, CardBody, PageSkeleton, ConfirmDialog, useToast } from '../../components/ui'
 import { StatusBadge } from '../../components/ui/StatusBadge'
+import { SchoolQrPanel } from '../../components/schools/SchoolQrPanel'
 import { useAuth } from '../../contexts/AuthContext'
 import { getSchoolById, setSchoolStatus } from '../../services/schools'
 import type { School } from '../../types/school'
@@ -98,32 +99,34 @@ export function SchoolDetailPage() {
 
   return (
     <div>
-      <PageHeader
-        title={school.tradeName || school.name}
-        description="Detalhes da escola cadastrada."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Link to="/app/escolas">
-              <Button variant="outline">Voltar</Button>
-            </Link>
-            {canManageSchools && (
-              <>
-                <Link to={`/app/escolas/${school.id}/editar`}>
-                  <Button variant="secondary">Editar</Button>
-                </Link>
-                <Button
-                  variant={school.status === 'ativo' ? 'danger' : 'primary'}
-                  onClick={() => setConfirmOpen(true)}
-                >
-                  {school.status === 'ativo' ? 'Inativar' : 'Ativar'}
-                </Button>
-              </>
-            )}
-          </div>
-        }
-      />
+      <div className="print:hidden">
+        <PageHeader
+          title={school.tradeName || school.name}
+          description={canManageSchools ? 'Detalhes da escola cadastrada.' : 'Dados da sua escola.'}
+          action={
+            <div className="flex flex-wrap gap-2">
+              <Link to="/app/escolas">
+                <Button variant="outline">Voltar</Button>
+              </Link>
+              {canManageSchools && (
+                <>
+                  <Link to={`/app/escolas/${school.id}/editar`}>
+                    <Button variant="secondary">Editar</Button>
+                  </Link>
+                  <Button
+                    variant={school.status === 'ativo' ? 'danger' : 'primary'}
+                    onClick={() => setConfirmOpen(true)}
+                  >
+                    {school.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                  </Button>
+                </>
+              )}
+            </div>
+          }
+        />
+      </div>
 
-      <Card>
+      <Card className="mb-4 print:hidden">
         <CardBody>
           <div className="mb-4">
             <StatusBadge status={school.status} />
@@ -138,6 +141,8 @@ export function SchoolDetailPage() {
           </dl>
         </CardBody>
       </Card>
+
+      <SchoolQrPanel school={school} />
 
       <ConfirmDialog
         open={confirmOpen}

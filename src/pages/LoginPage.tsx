@@ -74,7 +74,7 @@ export function LoginPage() {
         <CardHeader>
           <h1 className="text-xl font-bold text-ink">Entrar no sistema</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Acesse a área administrativa com seu e-mail e senha.
+            Acesse com seu e-mail e senha.
           </p>
         </CardHeader>
         <CardBody>

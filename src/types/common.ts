@@ -32,3 +32,12 @@ export const STATUS_LABELS: Record<EntityStatus, string> = {
   ativo: 'Ativo',
   inativo: 'Inativo',
 }
+
+export type StudentShift = 'manha' | 'tarde' | 'noite' | 'integral'
+
+export const STUDENT_SHIFT_LABELS: Record<StudentShift, string> = {
+  manha: 'Manhã',
+  tarde: 'Tarde',
+  noite: 'Noite',
+  integral: 'Integral',
+}
