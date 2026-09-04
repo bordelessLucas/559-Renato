@@ -72,7 +72,7 @@ export function LoginPage() {
     <AuthLayout>
       <Card>
         <CardHeader>
-          <h1 className="text-xl font-bold text-ink">Entrar no sistema</h1>
+          <h1 className="text-xl font-bold text-ink">Entrar no Olhar+IA</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Acesse com seu e-mail e senha.
           </p>

@@ -38,7 +38,7 @@ export function SchoolQrPanel({ school }: { school: School }) {
             {name}.
           </p>
         </div>
-        <Badge variant="warning">Prévia do fluxo</Badge>
+        <Badge variant="success">Cadastro ativo</Badge>
       </CardHeader>
       <CardBody>
         <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
@@ -77,9 +77,9 @@ export function SchoolQrPanel({ school }: { school: School }) {
                   Compartilhar no WhatsApp
                 </Button>
               </a>
-              <Link to={`/cadastro/${school.id}?escola=${encodeURIComponent(name)}&preview=1`} target="_blank">
+              <Link to={`/cadastro/${school.id}?escola=${encodeURIComponent(name)}`} target="_blank">
                 <Button type="button" variant="outline">
-                  Ver fluxo do responsável
+                  Abrir cadastro do responsável
                 </Button>
               </Link>
               <Button type="button" variant="ghost" onClick={() => window.print()}>
@@ -87,7 +87,7 @@ export function SchoolQrPanel({ school }: { school: School }) {
               </Button>
             </div>
             <p className="text-xs text-ink-subtle">
-              Nesta prévia o QR abre o fluxo visual. O cadastro real ainda não grava dados.
+              O cadastro grava o responsável, o dependente e a foto no Olhar+IA, sem aprovação manual.
             </p>
           </div>
         </div>

@@ -50,12 +50,15 @@ service firebase.storage {
           && firestore.exists(/databases/(default)/documents/students/$(studentId))
           && request.auth.uid in studentData(studentId).guardianUserIds);
 
-      allow write: if isGeneralAdmin()
+      allow write: if (isGeneralAdmin()
         || (isSchoolAdmin() && sameSchool(schoolId))
         || (isGuardian()
           && firestore.exists(/databases/(default)/documents/students/$(studentId))
           && request.auth.uid in studentData(studentId).guardianUserIds
-          && sameSchool(schoolId));
+          && sameSchool(schoolId)
+          && studentData(studentId).schoolId == schoolId))
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
   }
 }

@@ -72,7 +72,7 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-16 items-center border-b border-line px-5">
+        <div className="flex h-20 items-center border-b border-line px-5">
           <BrandMark />
         </div>
 

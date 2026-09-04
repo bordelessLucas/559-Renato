@@ -1,4 +1,12 @@
-# Escopo do Projeto — Sistema Escolar com Reconhecimento Facial
+# Escopo do Projeto — Olhar+IA
+
+## Nome oficial
+
+**Olhar+IA** — Inteligência Artificial para Escolas
+
+Slogan: *Tecnologia que aproxima. Informação que acolhe. Tempo que transforma.*
+
+---
 
 ## Objetivo principal
 
@@ -89,7 +97,7 @@ Câmera reconhece face → Identifica aluno na base → Registra entrada/saída 
 
 ## Pendências de definição (aguardando cliente)
 
-- Nome oficial, logo e identidade visual definitiva
+- ~~Nome oficial, logo e identidade visual definitiva~~ → **Definido: Olhar+IA** (set/2026)
 - Tecnologia / marca de câmera de reconhecimento facial
 - API de integração com as câmeras
 - Canal de notificação (WhatsApp / SMS) e provedor

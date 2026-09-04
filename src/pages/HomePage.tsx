@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { PublicLayout } from '../layouts/PublicLayout'
+import { BrandMark } from '../components/layout/BrandMark'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody } from '../components/ui/Card'
 
@@ -27,20 +28,20 @@ export function HomePage() {
     <PublicLayout>
       <section className="relative overflow-hidden">
         <div
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgb(15_23_42_/_0.03),transparent_40%),radial-gradient(circle_at_80%_20%,rgb(20_184_166_/_0.18),transparent_40%)]"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgb(13_59_78_/_0.04),transparent_40%),radial-gradient(circle_at_80%_20%,rgb(59_167_245_/_0.2),transparent_42%),radial-gradient(circle_at_15%_80%,rgb(255_194_71_/_0.12),transparent_35%)]"
           aria-hidden
         />
-        <div className="page-container relative py-16 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-brand-700">
-              Controle Escolar
+        <div className="page-container relative py-14 sm:py-20 lg:py-24">
+          <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+            <BrandMark prominent className="mb-8 pointer-events-none" />
+            <h1 className="sr-only">Olhar+IA</h1>
+            <p className="max-w-2xl text-lg font-semibold text-ink sm:text-xl">
+              Inteligência Artificial para Escolas
             </p>
-            <h1 className="text-4xl font-extrabold tracking-tight text-ink sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-              Segurança e acompanhamento da entrada e saída dos alunos
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-ink-muted sm:text-lg">
-              Uma plataforma para a escola acompanhar a entrada e a saída, e para a família receber
-              aviso quando o dependente chegar ou sair.
+            <p className="mx-auto mt-4 max-w-2xl text-base text-ink-muted sm:text-lg">
+              Tecnologia que aproxima. Informação que acolhe. Tempo que transforma — a escola
+              acompanha a entrada e a saída, e a família recebe aviso quando o dependente chegar ou
+              sair.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/login">

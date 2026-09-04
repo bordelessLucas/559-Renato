@@ -1,18 +1,29 @@
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 
-export function BrandMark({ className, compact = false }: { className?: string; compact?: boolean }) {
+type BrandMarkProps = {
+  className?: string
+  /** Menor, para espaços apertados (ex.: cards) */
+  compact?: boolean
+  /** Destaque hero / login */
+  prominent?: boolean
+}
+
+export function BrandMark({ className, compact = false, prominent = false }: BrandMarkProps) {
   return (
-    <Link to="/" className={cn('inline-flex items-center gap-2.5', className)}>
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white shadow-sm">
-        CE
-      </span>
-      {!compact && (
-        <span className="flex flex-col leading-tight">
-          <span className="text-sm font-bold text-ink">Controle Escolar</span>
-          <span className="text-[11px] font-medium text-ink-muted">Entrada e saída</span>
-        </span>
-      )}
+    <Link to="/" className={cn('inline-flex items-center', className)} aria-label="Olhar+IA">
+      <img
+        src="/brand/logo-olhar-mais-ia.png?v=2"
+        alt="Olhar+IA — Inteligência Artificial para Escolas"
+        className={cn(
+          'w-auto bg-transparent object-contain object-left',
+          compact && 'h-9 max-w-[10rem] sm:h-10 sm:max-w-[12rem]',
+          !compact &&
+            !prominent &&
+            'h-12 max-w-[14rem] sm:h-14 sm:max-w-[17rem]',
+          prominent && 'h-16 max-w-[18rem] sm:h-20 sm:max-w-[22rem] lg:h-24 lg:max-w-[26rem]',
+        )}
+      />
     </Link>
   )
 }

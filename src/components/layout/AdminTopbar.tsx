@@ -50,7 +50,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur sm:px-6">
+      <header className="sticky top-0 z-30 flex h-20 items-center justify-between gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Button
             variant="ghost"
