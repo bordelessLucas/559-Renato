@@ -1,6 +1,8 @@
-import { addDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
+import { addDoc, getDocs, limit, orderBy, query, where, Timestamp } from 'firebase/firestore'
 import { alertsCollection, withTimestamps } from '../lib/firestore'
-import type { SchoolAlert, SchoolAlertInput } from '../types/alert'
+import { isGeneralAdmin } from '../lib/permissions'
+import type { SchoolAlert, SchoolAlertInput, AlertKind } from '../types/alert'
+import type { AppUser } from '../types/user'
 
 function mapAlert(id: string, data: Record<string, unknown>): SchoolAlert {
   return {
@@ -32,7 +34,31 @@ export async function listAlertsForSchool(schoolId: string, max = 50): Promise<S
   return snap.docs.map((item) => mapAlert(item.id, item.data()))
 }
 
+export async function listAlertsForProfile(profile: AppUser, max = 50): Promise<SchoolAlert[]> {
+  if (isGeneralAdmin(profile)) {
+    const snap = await getDocs(query(alertsCollection, orderBy('occurredAt', 'desc'), limit(max)))
+    return snap.docs.map((item) => mapAlert(item.id, item.data()))
+  }
+  if (!profile.schoolId) return []
+  return listAlertsForSchool(profile.schoolId, max)
+}
+
 export async function createAlert(input: SchoolAlertInput): Promise<string> {
-  const ref = await addDoc(alertsCollection, withTimestamps(input, true))
+  const ref = await addDoc(
+    alertsCollection,
+    withTimestamps(
+      {
+        ...input,
+        occurredAt: input.occurredAt ?? Timestamp.now(),
+      },
+      true,
+    ),
+  )
   return ref.id
+}
+
+export const ALERT_KIND_LABELS: Record<AlertKind, string> = {
+  atraso: 'Atraso',
+  ausencia: 'Ausência',
+  ocorrencia: 'Ocorrência',
 }

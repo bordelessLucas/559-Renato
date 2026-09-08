@@ -17,8 +17,9 @@ import {
 import { db, storage } from '../lib/firebase'
 import { studentsCollection, withTimestamps } from '../lib/firestore'
 import { isGeneralAdmin } from '../lib/permissions'
+import { isStorageEnabled } from '../lib/storage-config'
 import type { Student, StudentInput } from '../types/student'
-import type { EntityStatus, StudentShift } from '../types/common'
+import type { EntityStatus, StudentGender, StudentShift } from '../types/common'
 import type { AppUser } from '../types/user'
 import type { Guardian } from '../types/guardian'
 
@@ -28,6 +29,9 @@ const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 function mapStudent(id: string, data: Record<string, unknown>): Student {
   const rawGuardians = Array.isArray(data.guardianIds) ? data.guardianIds : []
   const shift = String(data.shift ?? '') as StudentShift | ''
+  const genderRaw = String(data.gender ?? '')
+  const gender: StudentGender | '' =
+    genderRaw === 'masculino' || genderRaw === 'feminino' ? genderRaw : ''
 
   return {
     id,
@@ -36,6 +40,7 @@ function mapStudent(id: string, data: Record<string, unknown>): Student {
     enrollmentCode: String(data.enrollmentCode ?? ''),
     className: String(data.className ?? ''),
     shift: shift === 'manha' || shift === 'tarde' || shift === 'noite' || shift === 'integral' ? shift : '',
+    gender,
     notes: String(data.notes ?? ''),
     photoUrl: String(data.photoUrl ?? ''),
     photoPath: String(data.photoPath ?? ''),
@@ -126,6 +131,11 @@ export function validateStudentPhoto(file: File) {
 }
 
 export async function uploadStudentPhoto(studentId: string, schoolId: string, file: File) {
+  if (!isStorageEnabled()) {
+    throw new Error(
+      'Armazenamento de imagens ainda não está ativo. O cadastro pode seguir sem foto.',
+    )
+  }
   validateStudentPhoto(file)
   const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
   const photoPath = `students/${schoolId}/${studentId}/photo.${extension}`

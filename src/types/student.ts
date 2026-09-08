@@ -1,5 +1,5 @@
 import type { Timestamp } from 'firebase/firestore'
-import type { EntityStatus, StudentShift } from './common'
+import type { EntityStatus, StudentGender, StudentShift } from './common'
 
 export interface Student {
   id: string
@@ -8,6 +8,8 @@ export interface Student {
   enrollmentCode: string
   className: string
   shift: StudentShift | ''
+  /** Usado no avatar de demonstração quando não há foto. */
+  gender: StudentGender | ''
   notes: string
   photoUrl: string
   photoPath: string

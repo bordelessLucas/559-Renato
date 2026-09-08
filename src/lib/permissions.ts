@@ -52,6 +52,12 @@ export function isGuardianUser(profile: AppUser | null | undefined): boolean {
   )
 }
 
+/** Destino pós-login por perfil */
+export function homePathForProfile(profile: AppUser | null | undefined): string {
+  if (isGuardianUser(profile)) return '/app/responsavel'
+  return '/app/dashboard'
+}
+
 export function canAccessAdminPanel(profile: AppUser | null | undefined): boolean {
   if (!isActiveProfile(profile) || !profile) return false
   const role = normalizeRole(profile.role)

@@ -31,7 +31,7 @@ import { listGuardiansForProfile } from '../../services/guardians'
 import type { School } from '../../types/school'
 import type { Guardian } from '../../types/guardian'
 import type { Student } from '../../types/student'
-import { STUDENT_SHIFT_LABELS, type StudentShift } from '../../types/common'
+import { STUDENT_GENDER_LABELS, STUDENT_SHIFT_LABELS, type StudentGender, type StudentShift } from '../../types/common'
 
 const SHIFT_OPTIONS = [
   { value: '', label: 'Não informado' },
@@ -40,6 +40,11 @@ const SHIFT_OPTIONS = [
     label: STUDENT_SHIFT_LABELS[key],
   })),
 ]
+
+const GENDER_OPTIONS = (Object.keys(STUDENT_GENDER_LABELS) as StudentGender[]).map((key) => ({
+  value: key,
+  label: STUDENT_GENDER_LABELS[key],
+}))
 
 export function StudentFormPage() {
   const { id } = useParams()
@@ -57,6 +62,7 @@ export function StudentFormPage() {
   const [existing, setExisting] = useState<Student | null>(null)
 
   const [name, setName] = useState('')
+  const [gender, setGender] = useState<StudentGender>('masculino')
   const [birthDate, setBirthDate] = useState('')
   const [enrollmentCode, setEnrollmentCode] = useState('')
   const [className, setClassName] = useState('')
@@ -90,6 +96,7 @@ export function StudentFormPage() {
           }
           setExisting(student)
           setName(student.name)
+          setGender(student.gender === 'feminino' ? 'feminino' : 'masculino')
           setBirthDate(student.birthDate)
           setEnrollmentCode(student.enrollmentCode)
           setClassName(student.className)
@@ -206,6 +213,7 @@ export function StudentFormPage() {
         enrollmentCode: enrollmentCode.trim(),
         className: className.trim(),
         shift,
+        gender,
         notes: notes.trim(),
         schoolId,
         guardianIds,
@@ -283,6 +291,13 @@ export function StudentFormPage() {
                     onChange={(e) => setName(e.target.value)}
                     error={errors.name}
                     disabled={submitting}
+                  />
+                  <Select
+                    label="Menino ou menina"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as StudentGender)}
+                    disabled={submitting}
+                    options={GENDER_OPTIONS}
                   />
                   <Input
                     label="Data de nascimento"

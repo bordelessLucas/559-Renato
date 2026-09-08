@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardFooter, CardHeader } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Spinner } from '../components/ui/Spinner'
-import { isActiveProfile } from '../lib/permissions'
+import { isActiveProfile, homePathForProfile } from '../lib/permissions'
 
 export function LoginPage() {
   const { user, profile, loading: authLoading, systemInitialized, login } = useAuth()
@@ -30,7 +30,7 @@ export function LoginPage() {
   }
 
   if (user && profile && isActiveProfile(profile)) {
-    return <Navigate to="/app/dashboard" replace />
+    return <Navigate to={homePathForProfile(profile)} replace />
   }
 
   if (user && !systemInitialized) {
@@ -61,6 +61,7 @@ export function LoginPage() {
     try {
       await login(email, password)
       navigate('/app/dashboard', { replace: true })
+      // Responsável é redirecionado para /app/responsavel pelo ProtectedRoute
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Falha ao entrar.')
     } finally {
@@ -74,7 +75,7 @@ export function LoginPage() {
         <CardHeader>
           <h1 className="text-xl font-bold text-ink">Entrar no Olhar+IA</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Acesse com seu e-mail e senha.
+            Família: use o e-mail do cadastro. Escola: use o acesso administrativo.
           </p>
         </CardHeader>
         <CardBody>

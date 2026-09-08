@@ -9,6 +9,7 @@ import {
   loadActiveSchoolForSignup,
   submitPublicSignup,
 } from '../../services/public-signup'
+import { isStorageEnabled, STORAGE_PENDING_MESSAGE } from '../../lib/storage-config'
 import type { School } from '../../types/school'
 
 type Step = 'inicio' | 'responsavel' | 'aluno' | 'foto' | 'resumo' | 'pronto'
@@ -77,6 +78,8 @@ export function PublicSignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [registeredCount, setRegisteredCount] = useState(0)
   const [lastChildName, setLastChildName] = useState('')
+  const [photoPendingMessage, setPhotoPendingMessage] = useState('')
+  const storageEnabled = isStorageEnabled()
 
   const schoolName = useMemo(
     () => (school ? schoolDisplayName(school) : schoolNameHint || 'esta escola'),
@@ -147,10 +150,13 @@ export function PublicSignupPage() {
   }
 
   const validatePhoto = () => {
-    const next: Record<string, string> = {}
-    if (!photoFile) next.photo = 'Capture ou envie a foto do dependente.'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    // Foto é opcional enquanto Storage não está ativo; recomendada quando ativo.
+    setErrors((prev) => {
+      const next = { ...prev }
+      delete next.photo
+      return next
+    })
+    return true
   }
 
   const handlePhotoFile = (file: File | null) => {
@@ -174,8 +180,8 @@ export function PublicSignupPage() {
   }
 
   const handleFinish = async () => {
-    if (!schoolId || !photoFile) return
-    if (!validateGuardian() || !validateChild() || !validatePhoto()) {
+    if (!schoolId) return
+    if (!validateGuardian() || !validateChild()) {
       setStep(!email || !password ? 'responsavel' : !childName ? 'aluno' : 'foto')
       return
     }
@@ -183,7 +189,7 @@ export function PublicSignupPage() {
     setSubmitting(true)
     setSubmitError('')
     try {
-      await submitPublicSignup({
+      const result = await submitPublicSignup({
         schoolId,
         email,
         password,
@@ -195,6 +201,7 @@ export function PublicSignupPage() {
         photoFile,
       })
       setLastChildName(childName.trim())
+      setPhotoPendingMessage(result.photoPending ? (result.photoMessage || STORAGE_PENDING_MESSAGE) : '')
       setRegisteredCount((count) => count + 1)
       setStep('pronto')
     } catch (error) {
@@ -270,9 +277,18 @@ export function PublicSignupPage() {
                   </li>
                   <li>
                     <strong className="text-ink">4. Foto para reconhecimento</strong>
-                    <p>Capture a face pela câmera ou envie uma imagem nítida.</p>
+                    <p>
+                      {storageEnabled
+                        ? 'Capture a face pela câmera ou envie uma imagem nítida.'
+                        : 'A foto pode ficar pendente nesta fase (armazenamento ainda não ativo).'}
+                    </p>
                   </li>
                 </ol>
+                {!storageEnabled && (
+                  <p className="rounded-lg border border-warning-600/20 bg-warning-50 px-3 py-2 text-xs text-warning-700">
+                    {STORAGE_PENDING_MESSAGE}
+                  </p>
+                )}
                 <Button fullWidth onClick={() => setStep('responsavel')}>
                   Começar cadastro
                 </Button>
@@ -377,7 +393,9 @@ export function PublicSignupPage() {
               <CardHeader>
                 <h1 className="text-xl font-bold text-ink">Foto para reconhecimento</h1>
                 <p className="mt-1 text-sm text-ink-muted">
-                  Posicione o rosto bem iluminado e capture pela câmera, ou envie um arquivo.
+                  {storageEnabled
+                    ? 'Posicione o rosto bem iluminado e capture pela câmera, ou envie um arquivo.'
+                    : 'Opcional nesta fase. Você pode pular e concluir o cadastro sem foto.'}
                 </p>
               </CardHeader>
               <CardBody className="space-y-4">
@@ -407,7 +425,7 @@ export function PublicSignupPage() {
                   </span>
                 </label>
                 {errors.photo && <p className="text-sm text-danger-600">{errors.photo}</p>}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" onClick={() => setStep('aluno')}>
                     Voltar
                   </Button>
@@ -420,6 +438,20 @@ export function PublicSignupPage() {
                   >
                     Continuar
                   </Button>
+                  {!storageEnabled && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setPhotoFile(null)
+                        if (photoPreview) URL.revokeObjectURL(photoPreview)
+                        setPhotoPreview('')
+                        setStep('resumo')
+                      }}
+                    >
+                      Pular foto
+                    </Button>
+                  )}
                 </div>
               </CardBody>
             </Card>
@@ -497,7 +529,8 @@ export function PublicSignupPage() {
               <CardHeader>
                 <h1 className="text-xl font-bold text-ink">Cadastro concluído</h1>
                 <p className="mt-1 text-sm text-ink-muted">
-                  {lastChildName || 'O dependente'} foi registrado em {schoolName} e a foto foi salva.
+                  {lastChildName || 'O dependente'} foi registrado em {schoolName}
+                  {photoPendingMessage ? '.' : ' e a foto foi salva.'}
                 </p>
               </CardHeader>
               <CardBody className="space-y-4">
@@ -505,6 +538,11 @@ export function PublicSignupPage() {
                   {registeredCount} dependente(s) cadastrado(s) nesta sessão. Você já pode entrar com o
                   e-mail informado.
                 </p>
+                {photoPendingMessage && (
+                  <p className="rounded-lg border border-warning-600/20 bg-warning-50 px-3 py-2 text-sm text-warning-700">
+                    {photoPendingMessage}
+                  </p>
+                )}
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     type="button"

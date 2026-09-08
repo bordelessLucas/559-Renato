@@ -9,7 +9,7 @@ import { useToast } from '../ui/Toast'
 import { isGuardianUser, isGeneralAdmin, isOperator, isSchoolAdmin } from '../../lib/permissions'
 
 function areaLabel(profile: ReturnType<typeof useAuth>['profile']) {
-  if (isGuardianUser(profile)) return 'Área do responsável'
+  if (isGuardianUser(profile)) return 'Área da família'
   if (isOperator(profile)) return 'Área operacional'
   if (isSchoolAdmin(profile)) return 'Administração da escola'
   if (isGeneralAdmin(profile)) return 'Administração geral'

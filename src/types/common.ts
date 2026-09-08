@@ -41,3 +41,11 @@ export const STUDENT_SHIFT_LABELS: Record<StudentShift, string> = {
   noite: 'Noite',
   integral: 'Integral',
 }
+
+/** Sexo aparente para avatar de demonstração (sem foto real). */
+export type StudentGender = 'masculino' | 'feminino'
+
+export const STUDENT_GENDER_LABELS: Record<StudentGender, string> = {
+  masculino: 'Menino',
+  feminino: 'Menina',
+}

@@ -1,19 +1,16 @@
 import type { FaceRecognitionProvider } from '../../types/face-recognition'
 import { NullFaceRecognitionProvider } from './null-provider'
+import { MockFaceRecognitionProvider } from './mock-provider'
 
-let activeProvider: FaceRecognitionProvider = new NullFaceRecognitionProvider()
+/** Default: mock pronto para demos (sem hardware). Troque por null quando quiser sinalizar bloqueio. */
+let activeProvider: FaceRecognitionProvider = new MockFaceRecognitionProvider()
 
-/** Retorna o provedor ativo (null até definição do cliente). */
 export function getFaceRecognitionProvider(): FaceRecognitionProvider {
   return activeProvider
 }
 
-/**
- * Troca o provedor (ex.: após implementar Hikvision/Intelbras/etc.).
- * Só chamar com implementação real aprovada — não usar em produção sem PoC.
- */
 export function setFaceRecognitionProvider(provider: FaceRecognitionProvider) {
   activeProvider = provider
 }
 
-export { NullFaceRecognitionProvider }
+export { NullFaceRecognitionProvider, MockFaceRecognitionProvider }

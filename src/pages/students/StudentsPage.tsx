@@ -15,6 +15,7 @@ import {
   TableRow,
   ConfirmDialog,
   Select,
+  StudentAvatar,
   useToast,
 } from '../../components/ui'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -200,15 +201,12 @@ export function StudentsPage() {
                 <TableRow key={student.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-line bg-surface-muted">
-                        {student.photoUrl ? (
-                          <img src={student.photoUrl} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-[10px] font-semibold text-ink-subtle">
-                            {student.name.slice(0, 1).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
+                      <StudentAvatar
+                        name={student.name}
+                        gender={student.gender}
+                        photoUrl={student.photoUrl || undefined}
+                        size="sm"
+                      />
                       <p className="font-medium">{student.name}</p>
                     </div>
                   </TableCell>

@@ -45,11 +45,48 @@
 - [x] Página pública de cadastro por escola (fluxo via link/QR Code)
 - [x] Geração de QR Code por escola (admin)
 - [x] Captura de imagem/selfie real (browser `getUserMedia`)
-- [x] Upload da imagem para Firebase Storage
+- [x] Upload da imagem para Firebase Storage (**quando** `VITE_STORAGE_ENABLED=true`)
 - [x] Autocadastro do responsável + aluno no Firestore (sem aprovação)
 - [x] Compartilhamento do link (WhatsApp, etc.)
 - [x] Remover selo “prévia” quando o fluxo estiver funcional
-- [ ] **Operação:** ativar Firebase Storage no console (`Get Started`) e publicar `storage.rules` — bloqueia upload de fotos até lá
+- [x] **Sem Storage:** foto opcional / não bloqueante + aviso “foto pendente” (Sprint V)
+- [ ] **Operação futura:** ativar Firebase Storage + `VITE_STORAGE_ENABLED=true` + publicar `storage.rules`
+
+## Sprint — Validação UI/UX do Responsável ✅
+- [x] Home da família com jornada clara
+- [x] Hub: dependentes + avisos
+- [x] Área dedicada `/app/responsavel/notificacoes` (filtro por filho + simular entrada/saída)
+- [x] Controle por dependente: Ver / Editar / Avisos
+- [x] Formulário simplificado (nome primeiro; extras opcionais)
+- [x] Foto opcional + captura visual sem depender de Storage
+- [x] Página “Como funciona”
+- [x] Redirect pós-login para `/app/responsavel`
+- [x] Doc `docs-ia/sprint_validacao_responsavel.md`
+
+
+## Sprint M — Entrada e Saída (mock facial) ✅
+- [x] Página `/app/movimentacoes` + nav habilitada
+- [x] Registro manual + anti-duplicidade
+- [x] `MockFaceRecognitionProvider` + simulação de evento
+- [x] Histórico do dia
+
+## Sprint P — Presença ✅
+- [x] Página `/app/presenca` com `deriveDayPresence`
+- [x] Indicadores presentes / sem registro / entradas / saídas
+- [x] Filtros por status
+
+## Sprint N — Alertas + Notificações (UI mock) ✅
+- [x] Página `/app/alertas` (criar/listar)
+- [x] Página `/app/notificacoes` + cards Olhar+IA
+- [x] `MockNotificationProvider` + histórico de tentativas
+- [x] Copy: canal real aguarda cliente
+
+## Sprint S — Storage real (preparado)
+- [x] Documentação `docs-ia/storage_ativacao.md`
+- [x] Flag pronta para `VITE_STORAGE_ENABLED=true`
+- [ ] Ativar Storage no console (depende do cliente)
+- [ ] Publicar `storage.rules`
+- [ ] Deploy com flag true + teste de upload
 
 ## Sprint 4 — Reconhecimento Facial (integração)
 - [x] Camada de abstração `FaceRecognitionProvider` + contrato de eventos

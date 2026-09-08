@@ -14,11 +14,17 @@ function canSeeNavItem(itemId: string, profile: ReturnType<typeof useAuth>['prof
   if (!profile) return false
 
   if (isGuardianUser(profile)) {
-    return itemId === 'guardian-home' || itemId === 'guardian-student-new'
+    return (
+      itemId === 'guardian-home' ||
+      itemId === 'guardian-notifications' ||
+      itemId === 'guardian-guide'
+    )
   }
 
   if (isOperator(profile)) {
-    return ['dashboard', 'students', 'movements', 'attendance'].includes(itemId)
+    return ['dashboard', 'students', 'movements', 'attendance', 'alerts', 'notifications'].includes(
+      itemId,
+    )
   }
 
   if (isSchoolAdmin(profile)) {
@@ -46,8 +52,25 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
   const { profile } = useAuth()
 
   const guardianItems: NavItem[] = [
-    { id: 'guardian-home', label: 'Meus dependentes', path: '/app/responsavel', enabled: true, end: true },
-    { id: 'guardian-student-new', label: 'Cadastrar dependente', path: '/app/responsavel/alunos/novo', enabled: true },
+    {
+      id: 'guardian-home',
+      label: 'Meus dependentes',
+      path: '/app/responsavel',
+      enabled: true,
+      end: true,
+    },
+    {
+      id: 'guardian-notifications',
+      label: 'Avisos',
+      path: '/app/responsavel/notificacoes',
+      enabled: true,
+    },
+    {
+      id: 'guardian-guide',
+      label: 'Como funciona',
+      path: '/app/responsavel/como-funciona',
+      enabled: true,
+    },
   ]
 
   const items = isGuardianUser(profile)
@@ -68,8 +91,9 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-line bg-surface transition-transform duration-200 lg:static lg:translate-x-0',
-          open ? 'translate-x-0' : '-translate-x-full',
+          'fixed inset-y-0 left-0 z-50 flex h-dvh w-72 flex-col border-r border-line bg-surface transition-transform duration-200',
+          'lg:sticky lg:top-0 lg:translate-x-0',
+          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
         <div className="flex h-20 items-center border-b border-line px-5">

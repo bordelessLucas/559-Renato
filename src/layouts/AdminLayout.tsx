@@ -8,10 +8,10 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-dvh bg-surface-muted print:bg-white">
-      <div className="print:hidden">
+      <div className="print:hidden shrink-0">
         <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         <div className="print:hidden">
           <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
         </div>

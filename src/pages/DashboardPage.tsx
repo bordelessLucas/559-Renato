@@ -105,14 +105,16 @@ export function DashboardPage() {
       <div className="mb-4 grid gap-2 sm:grid-cols-2">
         <p className="rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink-muted">
           Facial: <strong className="text-ink">{faceProvider.label}</strong>
-          {faceProvider.ready ? '' : ' (bloqueado — aguardando câmera/API)'}
+          {faceProvider.ready ? ' — use Entrada e Saída para simular' : ' (bloqueado)'}
         </p>
         <p className="rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink-muted">
           Notificações:{' '}
           <strong className="text-ink">
-            {notificationProvider.ready ? notificationProvider.channel : 'canal pendente'}
+            {notificationProvider.ready ? `${notificationProvider.channel} (mock)` : 'canal pendente'}
           </strong>
-          {notificationProvider.ready ? '' : ' (WhatsApp/SMS a definir)'}
+          {notificationProvider.ready
+            ? ' — canal real WhatsApp/SMS a definir'
+            : ' (WhatsApp/SMS a definir)'}
         </p>
       </div>
 
@@ -144,12 +146,14 @@ export function DashboardPage() {
               schoolName={schoolName}
               type="entrada"
               timeLabel="07:42"
+              gender="feminino"
             />
             <MovementNotificationCard
-              studentName="Ana Silva"
+              studentName="Pedro Souza"
               schoolName={schoolName}
               type="saida"
               timeLabel="12:15"
+              gender="masculino"
             />
           </CardBody>
         </Card>

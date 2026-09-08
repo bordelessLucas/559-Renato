@@ -21,10 +21,16 @@ import { GuardianDetailPage } from '../pages/guardians/GuardianDetailPage'
 import { GuardianHomePage } from '../pages/GuardianHomePage'
 import { GuardianStudentFormPage } from '../pages/guardian/GuardianStudentFormPage'
 import { GuardianStudentDetailPage } from '../pages/guardian/GuardianStudentDetailPage'
+import { GuardianGuidePage } from '../pages/guardian/GuardianGuidePage'
+import { GuardianNotificationsPage } from '../pages/guardian/GuardianNotificationsPage'
 import { StudentsPage } from '../pages/students/StudentsPage'
 import { StudentFormPage } from '../pages/students/StudentFormPage'
 import { StudentDetailPage } from '../pages/students/StudentDetailPage'
 import { PublicSignupPage } from '../pages/public/PublicSignupPage'
+import { MovementsPage } from '../pages/movements/MovementsPage'
+import { AttendancePage } from '../pages/attendance/AttendancePage'
+import { AlertsPage } from '../pages/alerts/AlertsPage'
+import { NotificationsPage } from '../pages/notifications/NotificationsPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
 export function AppRoutes() {
@@ -47,6 +53,8 @@ export function AppRoutes() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="responsavel" element={<GuardianHomePage />} />
+                <Route path="responsavel/notificacoes" element={<GuardianNotificationsPage />} />
+                <Route path="responsavel/como-funciona" element={<GuardianGuidePage />} />
                 <Route path="responsavel/alunos/novo" element={<GuardianStudentFormPage />} />
                 <Route path="responsavel/alunos/:id" element={<GuardianStudentDetailPage />} />
                 <Route path="responsavel/alunos/:id/editar" element={<GuardianStudentFormPage />} />
@@ -70,6 +78,11 @@ export function AppRoutes() {
                 <Route path="alunos/novo" element={<StudentFormPage />} />
                 <Route path="alunos/:id" element={<StudentDetailPage />} />
                 <Route path="alunos/:id/editar" element={<StudentFormPage />} />
+
+                <Route path="movimentacoes" element={<MovementsPage />} />
+                <Route path="presenca" element={<AttendancePage />} />
+                <Route path="alertas" element={<AlertsPage />} />
+                <Route path="notificacoes" element={<NotificationsPage />} />
               </Route>
             </Route>
 

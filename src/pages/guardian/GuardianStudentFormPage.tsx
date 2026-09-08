@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { ErrorState } from '../../components/feedback/ErrorState'
+import { CameraCapture } from '../../components/public/CameraCapture'
 import {
+  Badge,
   Button,
   Card,
   CardBody,
@@ -25,8 +27,9 @@ import {
   validateStudentPhoto,
 } from '../../services/students'
 import { isGuardianUser } from '../../lib/permissions'
+import { isStorageEnabled, STORAGE_PENDING_MESSAGE } from '../../lib/storage-config'
 import type { Student } from '../../types/student'
-import { STUDENT_SHIFT_LABELS, type StudentShift } from '../../types/common'
+import { STUDENT_GENDER_LABELS, STUDENT_SHIFT_LABELS, type StudentGender, type StudentShift } from '../../types/common'
 
 const SHIFT_OPTIONS = [
   { value: '', label: 'Não informado' },
@@ -36,12 +39,18 @@ const SHIFT_OPTIONS = [
   })),
 ]
 
+const GENDER_OPTIONS = (Object.keys(STUDENT_GENDER_LABELS) as StudentGender[]).map((key) => ({
+  value: key,
+  label: STUDENT_GENDER_LABELS[key],
+}))
+
 export function GuardianStudentFormPage() {
   const { id } = useParams()
   const isEdit = Boolean(id)
-  const { profile } = useAuth()
+  const { profile, schoolName } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const storageEnabled = isStorageEnabled()
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -49,8 +58,10 @@ export function GuardianStudentFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [guardianId, setGuardianId] = useState('')
   const [existing, setExisting] = useState<Student | null>(null)
+  const [showExtras, setShowExtras] = useState(false)
 
   const [name, setName] = useState('')
+  const [gender, setGender] = useState<StudentGender>('masculino')
   const [birthDate, setBirthDate] = useState('')
   const [enrollmentCode, setEnrollmentCode] = useState('')
   const [className, setClassName] = useState('')
@@ -81,12 +92,16 @@ export function GuardianStudentFormPage() {
           }
           setExisting(student)
           setName(student.name)
+          setGender(student.gender === 'feminino' ? 'feminino' : 'masculino')
           setBirthDate(student.birthDate)
           setEnrollmentCode(student.enrollmentCode)
           setClassName(student.className)
           setShift(student.shift)
           setNotes(student.notes)
           setPhotoPreview(student.photoUrl)
+          if (student.birthDate || student.enrollmentCode || student.className || student.shift || student.notes) {
+            setShowExtras(true)
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar formulário.')
@@ -97,7 +112,7 @@ export function GuardianStudentFormPage() {
     void load()
   }, [id, profile])
 
-  const handlePhotoChange = (file: File | null) => {
+  const applyPhotoFile = (file: File | null) => {
     if (!file) {
       setPhotoFile(null)
       return
@@ -132,10 +147,13 @@ export function GuardianStudentFormPage() {
 
   const persistPhoto = async (studentId: string, schoolId: string) => {
     if (removePhoto) {
-      if (existing?.photoPath) await deleteStudentPhoto(existing.photoPath)
+      if (existing?.photoPath && storageEnabled) await deleteStudentPhoto(existing.photoPath)
       return { photoUrl: '', photoPath: '' }
     }
     if (photoFile) {
+      if (!storageEnabled) {
+        throw new Error(STORAGE_PENDING_MESSAGE)
+      }
       if (existing?.photoPath) {
         try {
           await deleteStudentPhoto(existing.photoPath)
@@ -164,6 +182,7 @@ export function GuardianStudentFormPage() {
         enrollmentCode: enrollmentCode.trim(),
         className: className.trim(),
         shift,
+        gender,
         notes: notes.trim(),
         schoolId,
         guardianIds: [guardianId],
@@ -172,7 +191,31 @@ export function GuardianStudentFormPage() {
       }
 
       if (isEdit && id && existing) {
-        const photo = await persistPhoto(id, schoolId)
+        let photo = {
+          photoUrl: existing.photoUrl || '',
+          photoPath: existing.photoPath || '',
+        }
+        try {
+          photo = await persistPhoto(id, schoolId)
+        } catch (photoError) {
+          toast({
+            variant: 'warning',
+            title: 'Dados salvos; foto não enviada',
+            description: photoError instanceof Error ? photoError.message : undefined,
+          })
+          await updateStudent(id, {
+            ...base,
+            status: existing.status,
+            guardianIds: existing.guardianIds.includes(guardianId)
+              ? existing.guardianIds
+              : [...existing.guardianIds, guardianId],
+            guardianUserIds: existing.guardianUserIds.includes(profile.id)
+              ? existing.guardianUserIds
+              : [...existing.guardianUserIds, profile.id],
+          })
+          navigate(`/app/responsavel/alunos/${id}`)
+          return
+        }
         await updateStudent(id, {
           ...base,
           ...photo,
@@ -197,16 +240,17 @@ export function GuardianStudentFormPage() {
         try {
           const photo = await persistPhoto(newId, schoolId)
           if (photo.photoUrl) await updateStudent(newId, photo)
+          toast({ variant: 'success', title: 'Dependente cadastrado' })
         } catch (photoError) {
           toast({
             variant: 'warning',
-            title: 'Dependente cadastrado sem a foto',
-            description: photoError instanceof Error ? photoError.message : undefined,
+            title: 'Dependente cadastrado',
+            description:
+              photoError instanceof Error
+                ? photoError.message
+                : 'Cadastro ok. A foto pode ficar pendente nesta fase.',
           })
-          navigate(`/app/responsavel/alunos/${newId}`)
-          return
         }
-        toast({ variant: 'success', title: 'Dependente cadastrado' })
         navigate(`/app/responsavel/alunos/${newId}`)
       }
     } catch (err) {
@@ -230,7 +274,7 @@ export function GuardianStudentFormPage() {
         <div>
           <PageHeader
             title={isEdit ? 'Editar dependente' : 'Cadastrar dependente'}
-            description="Você pode cadastrar mais de um dependente. Cada criança fica vinculada à sua conta e à sua escola."
+            description={`Escola: ${schoolName}. Informe o nome da criança — demais dados são opcionais.`}
             action={
               <Link to={isEdit && id ? `/app/responsavel/alunos/${id}` : '/app/responsavel'}>
                 <Button variant="outline">Cancelar</Button>
@@ -241,106 +285,143 @@ export function GuardianStudentFormPage() {
           <form className="space-y-4" onSubmit={handleSubmit} noValidate>
             <Card>
               <CardHeader>
-                <h2 className="text-sm font-semibold text-ink">Dados da criança</h2>
+                <h2 className="text-sm font-semibold text-ink">Quem é a criança?</h2>
+                <p className="mt-1 text-sm text-ink-muted">
+                  Esse nome aparece nas futuras notificações de entrada e saída.
+                </p>
               </CardHeader>
-              <CardBody>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Nome da criança"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    error={errors.name}
-                    disabled={submitting}
-                  />
-                  <Input
-                    label="Data de nascimento"
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    error={errors.birthDate}
-                    disabled={submitting}
-                    hint="Opcional"
-                  />
-                  <Input
-                    label="Matrícula"
-                    value={enrollmentCode}
-                    onChange={(e) => setEnrollmentCode(e.target.value)}
-                    disabled={submitting}
-                    hint="Opcional"
-                  />
-                  <Input
-                    label="Turma"
-                    value={className}
-                    onChange={(e) => setClassName(e.target.value)}
-                    disabled={submitting}
-                    hint="Opcional"
-                  />
-                  <Select
-                    label="Turno"
-                    value={shift}
-                    onChange={(e) => setShift(e.target.value as StudentShift | '')}
-                    disabled={submitting}
-                    options={SHIFT_OPTIONS}
-                  />
-                  <div className="sm:col-span-2">
-                    <Textarea
-                      label="Observações"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
+              <CardBody className="space-y-4">
+                <Input
+                  label="Nome completo"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  error={errors.name}
+                  disabled={submitting}
+                  autoFocus
+                  placeholder="Ex.: Ana Silva"
+                />
+                <Select
+                  label="Menino ou menina"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value as StudentGender)}
+                  disabled={submitting}
+                  options={GENDER_OPTIONS}
+                />
+                <p className="text-xs text-ink-muted">
+                  Sem foto, usamos um ícone de perfil (boneco) correspondente nos avisos.
+                </p>
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-brand-700 hover:text-brand-800"
+                  onClick={() => setShowExtras((value) => !value)}
+                >
+                  {showExtras ? 'Ocultar dados opcionais' : 'Incluir turma, turno e outros dados (opcional)'}
+                </button>
+                {showExtras && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      label="Data de nascimento"
+                      type="date"
+                      value={birthDate}
+                      onChange={(e) => setBirthDate(e.target.value)}
+                      error={errors.birthDate}
                       disabled={submitting}
-                      hint="Opcional"
                     />
+                    <Input
+                      label="Matrícula"
+                      value={enrollmentCode}
+                      onChange={(e) => setEnrollmentCode(e.target.value)}
+                      disabled={submitting}
+                    />
+                    <Input
+                      label="Turma"
+                      value={className}
+                      onChange={(e) => setClassName(e.target.value)}
+                      disabled={submitting}
+                    />
+                    <Select
+                      label="Turno"
+                      value={shift}
+                      onChange={(e) => setShift(e.target.value as StudentShift | '')}
+                      disabled={submitting}
+                      options={SHIFT_OPTIONS}
+                    />
+                    <div className="sm:col-span-2">
+                      <Textarea
+                        label="Observações"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        disabled={submitting}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </CardBody>
             </Card>
 
             <Card>
-              <CardHeader>
-                <h2 className="text-sm font-semibold text-ink">Foto de identificação</h2>
+              <CardHeader className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-semibold text-ink">Foto do rosto</h2>
+                <Badge variant={storageEnabled ? 'brand' : 'warning'}>
+                  {storageEnabled ? 'Recomendada' : 'Opcional agora'}
+                </Badge>
               </CardHeader>
-              <CardBody>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                  <div className="h-28 w-28 overflow-hidden rounded-xl border border-line bg-surface-muted">
-                    {photoPreview && !removePhoto ? (
-                      <img src={photoPreview} alt="Foto do dependente" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-ink-subtle">Sem foto</div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <Input
-                      label="Enviar imagem"
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      error={errors.photo}
-                      disabled={submitting}
-                      className="h-auto py-2"
-                      onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
-                      hint="JPG, PNG ou WEBP até 5 MB."
-                    />
-                    {photoPreview && !removePhoto && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setPhotoFile(null)
-                          setRemovePhoto(true)
-                          setPhotoPreview('')
-                        }}
-                      >
-                        Remover foto
-                      </Button>
-                    )}
-                  </div>
-                </div>
+              <CardBody className="space-y-4">
+                <p className="text-sm text-ink-muted">
+                  {storageEnabled
+                    ? 'Use uma foto nítida, de frente, para o reconhecimento nas câmeras da escola.'
+                    : 'Nesta fase a foto não é obrigatória. Você pode capturar para validar o fluxo visual; o envio permanente depende do Storage.'}
+                </p>
+                {!storageEnabled && (
+                  <p className="rounded-lg border border-warning-600/20 bg-warning-50 px-3 py-2 text-xs text-warning-700">
+                    {STORAGE_PENDING_MESSAGE}
+                  </p>
+                )}
+                <CameraCapture
+                  previewUrl={photoPreview && !removePhoto ? photoPreview : ''}
+                  onCapture={(file, url) => {
+                    if (photoPreview) URL.revokeObjectURL(photoPreview)
+                    setPhotoFile(file)
+                    setPhotoPreview(url)
+                    setRemovePhoto(false)
+                    setErrors((current) => ({ ...current, photo: '' }))
+                  }}
+                  onClear={() => {
+                    if (photoPreview) URL.revokeObjectURL(photoPreview)
+                    setPhotoFile(null)
+                    setPhotoPreview('')
+                    setRemovePhoto(true)
+                  }}
+                />
+                <label className="inline-flex">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={submitting}
+                    onChange={(e) => applyPhotoFile(e.target.files?.[0] ?? null)}
+                  />
+                  <span className="inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-surface-muted">
+                    Escolher arquivo
+                  </span>
+                </label>
+                {errors.photo && <p className="text-sm text-danger-600">{errors.photo}</p>}
               </CardBody>
             </Card>
 
-            <Button type="submit" loading={submitting}>
-              {isEdit ? 'Salvar alterações' : 'Cadastrar dependente'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" loading={submitting} size="lg">
+                {isEdit ? 'Salvar alterações' : 'Salvar dependente'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={submitting}
+                onClick={() => navigate('/app/responsavel')}
+              >
+                Cancelar
+              </Button>
+            </div>
           </form>
         </div>
       )}

@@ -4,6 +4,7 @@ import {
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { getAuthErrorMessage } from '../lib/auth-errors'
+import { isStorageEnabled, STORAGE_PENDING_MESSAGE } from '../lib/storage-config'
 import { createGuardian, getGuardianByUserId } from './guardians'
 import { createStudent, updateStudent, uploadStudentPhoto } from './students'
 import { createUserProfile, getUserProfile } from './users'
@@ -19,7 +20,15 @@ export type PublicSignupPayload = {
   fatherName: string
   fatherPhone: string
   childName: string
-  photoFile: File
+  photoFile: File | null
+}
+
+export type PublicSignupResult = {
+  studentId: string
+  guardianId: string
+  uid: string
+  photoPending: boolean
+  photoMessage?: string
 }
 
 export async function loadActiveSchoolForSignup(schoolId: string): Promise<School> {
@@ -47,7 +56,6 @@ async function ensureGuardianSession(payload: PublicSignupPayload) {
         throw new Error('Esta conta está inativa. Contate a escola.')
       }
     } else if (existing && existing.email.toLowerCase() !== email) {
-      // sessão de outro usuário — tenta autenticar com o e-mail informado
       uid = null
     }
   }
@@ -123,7 +131,6 @@ async function ensureGuardianSession(payload: PublicSignupPayload) {
     })
     guardian = await getGuardianByUserId(uid)
     if (!guardian) {
-      // fallback se a query atrasar
       guardian = {
         id: guardianId,
         name,
@@ -145,7 +152,7 @@ async function ensureGuardianSession(payload: PublicSignupPayload) {
   return { uid, profile, guardian }
 }
 
-export async function submitPublicSignup(payload: PublicSignupPayload) {
+export async function submitPublicSignup(payload: PublicSignupPayload): Promise<PublicSignupResult> {
   await loadActiveSchoolForSignup(payload.schoolId)
   const { uid, guardian } = await ensureGuardianSession(payload)
 
@@ -155,6 +162,7 @@ export async function submitPublicSignup(payload: PublicSignupPayload) {
     enrollmentCode: '',
     className: '',
     shift: '',
+    gender: '',
     notes: [
       payload.motherName.trim() && `Mãe: ${payload.motherName.trim()} (${payload.motherPhone.trim() || '—'})`,
       payload.fatherName.trim() && `Pai: ${payload.fatherName.trim()} (${payload.fatherPhone.trim() || '—'})`,
@@ -170,11 +178,45 @@ export async function submitPublicSignup(payload: PublicSignupPayload) {
     status: 'ativo',
   })
 
-  const uploaded = await uploadStudentPhoto(studentId, payload.schoolId, payload.photoFile)
-  await updateStudent(studentId, {
-    photoUrl: uploaded.photoUrl,
-    photoPath: uploaded.photoPath,
-  })
+  if (!payload.photoFile) {
+    return {
+      studentId,
+      guardianId: guardian.id,
+      uid,
+      photoPending: true,
+      photoMessage: isStorageEnabled()
+        ? 'Cadastro concluído. Você pode enviar a foto depois pela área do responsável.'
+        : STORAGE_PENDING_MESSAGE,
+    }
+  }
 
-  return { studentId, guardianId: guardian.id, uid }
+  if (!isStorageEnabled()) {
+    return {
+      studentId,
+      guardianId: guardian.id,
+      uid,
+      photoPending: true,
+      photoMessage: STORAGE_PENDING_MESSAGE,
+    }
+  }
+
+  try {
+    const uploaded = await uploadStudentPhoto(studentId, payload.schoolId, payload.photoFile)
+    await updateStudent(studentId, {
+      photoUrl: uploaded.photoUrl,
+      photoPath: uploaded.photoPath,
+    })
+    return { studentId, guardianId: guardian.id, uid, photoPending: false }
+  } catch (error) {
+    return {
+      studentId,
+      guardianId: guardian.id,
+      uid,
+      photoPending: true,
+      photoMessage:
+        error instanceof Error
+          ? `Cadastro salvo, mas a foto não foi enviada: ${error.message}`
+          : 'Cadastro salvo, mas a foto não foi enviada.',
+    }
+  }
 }
