@@ -90,27 +90,33 @@
 
 ## Sprint 4 — Reconhecimento Facial (integração)
 - [x] Camada de abstração `FaceRecognitionProvider` + contrato de eventos
+- [x] Pipeline privacy-first: foto → embedding → descarte (`docs-ia/facial_vetorizacao.md`)
+- [x] Coleção `faceTemplates` + flags `faceEnrolled` / `faceTemplateCount`
+- [x] `FaceEmbeddingProvider` mock + matcher por cosseno + limiares
+- [x] Enroll no cadastro (responsável / admin / QR) sem persistir foto
+- [x] Identify → movimento+notify **ou** alerta `nao_reconhecido` / `revisao_facial` + fallback manual
+- [x] Testes leves: `npm run test:face`
 - [ ] Pesquisa e definição da tecnologia/câmera (pendência do cliente)
 - [ ] API de integração com câmera → backend
-- [ ] Comparação da face capturada com base de alunos
-- [ ] Retorno da identificação (aluno, escola, confiança)
-- [ ] Tratamento de falha de leitura
-- [ ] Testes de confiabilidade (taxa de acerto, iluminação, distância)
+- [ ] Provedor real ArcFace/InsightFace ou Face cloud (troca plugável)
+- [ ] Match no backend (Callable) — galeria fora do browser
+- [ ] Testes de confiabilidade com modelo real (iluminação, distância)
 - [ ] PoC com provedor real (após escolha do cliente)
 
-> ⚠️ **Bloqueio externo:** câmera, fabricante e API ainda não definidos pelo cliente.
+> ⚠️ **Bloqueio externo:** câmera, fabricante e API facial real ainda não definidos. OpenAI **não** é o caminho biométrico.
 
 ## Sprint 5 — Registro de Entrada e Saída
 - [x] Coleção `movements` no Firestore (tipos + serviço + rules)
 - [x] Proteção contra duplicidade (janela configurável)
 - [x] Critério default entrada/saída por ponto de câmera (`cameraPointKind`)
-- [ ] Registro automático após identificação facial (depende Sprint 4)
-- [ ] Histórico consultável na UI admin dedicada
+- [x] Registro automático após match de embedding (mock pipeline)
+- [x] Histórico consultável na UI admin dedicada
 - [ ] Confirmação do critério com o cliente
 
 ## Sprint 6 — Notificação aos Responsáveis
 - [x] UI de cards de notificação alinhada ao guia Olhar+IA (entrada verde / saída azul claro)
 - [x] Camada `NotificationChannelProvider` + enqueue sem bloquear movimentação
+- [x] Enqueue automático após match facial (pipeline)
 - [ ] Definição do canal (WhatsApp / SMS — pendência do cliente)
 - [ ] Integração com provedor de mensageria
 - [ ] Histórico persistido de tentativas de envio (UI)
@@ -127,6 +133,7 @@
 
 ## Sprint 8 — Alertas e Ocorrências
 - [x] Tipos + serviço + rules para `alerts`
+- [x] Alertas operacionais `nao_reconhecido` e `revisao_facial` no pipeline facial
 - [ ] Atraso, ausência, ocorrência administrativa (regras por horário)
 - [ ] Regras configuráveis (horários por escola)
 - [ ] Histórico de alertas na UI
@@ -135,9 +142,10 @@
 ## Sprint 9 — Segurança, Privacidade e Refinamento
 - [x] Base documentada em `docs-ia/seguranca_privacidade.md`
 - [x] Rules com menor privilégio nas coleções principais
+- [x] Política: template biométrico sem retenção de imagem facial (fluxo atual)
 - [ ] Revisão completa periódica de Security Rules
-- [ ] Auditoria de acesso a dados de menores e imagens
-- [ ] Política de armazenamento/descarte de imagens (quando definida)
+- [ ] Auditoria de acesso a templates biométricos
+- [ ] Política de retenção de templates (quando definida pelo cliente)
 - [ ] Testes de segurança
 - [ ] Refinamentos de UX do piloto
 

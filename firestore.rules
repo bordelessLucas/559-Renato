@@ -206,16 +206,34 @@ service cloud.firestore {
       allow read: if isGeneralAdmin()
         || ((isSchoolAdmin() || isOperator()) && resource.data.schoolId == userDoc().schoolId);
 
-      allow create: if (isGeneralAdmin() || isSchoolAdmin())
+      allow create: if (isGeneralAdmin() || isSchoolAdmin() || isOperator())
         && request.resource.data.schoolId is string
-        && request.resource.data.kind in ['atraso', 'ausencia', 'ocorrencia']
+        && request.resource.data.kind in [
+          'atraso',
+          'ausencia',
+          'ocorrencia',
+          'nao_reconhecido',
+          'revisao_facial'
+        ]
         && (isGeneralAdmin() || request.resource.data.schoolId == userDoc().schoolId);
 
-      allow update: if (isGeneralAdmin() || isSchoolAdmin())
+      allow update: if (isGeneralAdmin() || isSchoolAdmin() || isOperator())
         && request.resource.data.schoolId == resource.data.schoolId
         && (isGeneralAdmin() || resource.data.schoolId == userDoc().schoolId);
 
       allow delete: if false;
+    }
+
+    // Templates biométricos — SOMENTE Admin SDK (Cloud Functions).
+    // Client NÃO lê nem escreve embeddings (GET/list bloqueados).
+    match /faceTemplates/{templateId} {
+      allow read, write: if false;
+    }
+
+    // Auditoria de enroll/match — sem vetores/imagens; leitura só admin geral.
+    match /faceAuditLogs/{logId} {
+      allow read: if isGeneralAdmin();
+      allow write: if false;
     }
 
     match /users/{userId} {

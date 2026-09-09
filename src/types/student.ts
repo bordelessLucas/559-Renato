@@ -13,6 +13,9 @@ export interface Student {
   notes: string
   photoUrl: string
   photoPath: string
+  /** true quando existe pelo menos um faceTemplate para o aluno */
+  faceEnrolled: boolean
+  faceTemplateCount: number
   schoolId: string
   guardianIds: string[]
   guardianUserIds: string[]

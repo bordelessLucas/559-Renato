@@ -5,7 +5,6 @@ import { ErrorState } from '../../components/feedback/ErrorState'
 import { Badge, Button, Card, CardBody, CardHeader, PageSkeleton, StudentAvatar } from '../../components/ui'
 import { useAuth } from '../../contexts/AuthContext'
 import { getStudentById } from '../../services/students'
-import { isStorageEnabled, STORAGE_PENDING_MESSAGE } from '../../lib/storage-config'
 import type { Student } from '../../types/student'
 import { STUDENT_GENDER_LABELS, STUDENT_SHIFT_LABELS } from '../../types/common'
 
@@ -23,7 +22,6 @@ export function GuardianStudentDetailPage() {
   const [student, setStudent] = useState<Student | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const storageEnabled = isStorageEnabled()
 
   useEffect(() => {
     const load = async () => {
@@ -57,6 +55,7 @@ export function GuardianStudentDetailPage() {
   }
 
   const hasPhoto = Boolean(student.photoUrl)
+  const faceEnrolled = student.faceEnrolled
 
   return (
     <div className="space-y-6">
@@ -79,11 +78,14 @@ export function GuardianStudentDetailPage() {
         </Link>
       </p>
 
-      {!hasPhoto && (
+      {!faceEnrolled ? (
+        <p className="rounded-xl border border-warning-600/20 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+          Rosto ainda não vetorizado. Sem isso a portaria não reconhece automaticamente — edite o
+          cadastro e envie uma foto (a imagem vira cálculo e não fica guardada).
+        </p>
+      ) : (
         <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
-          {storageEnabled
-            ? 'Ainda sem foto. Edite o cadastro para enviar a imagem usada no reconhecimento.'
-            : STORAGE_PENDING_MESSAGE}
+          Template facial ativo. Nenhuma foto da criança fica armazenada — só o padrão numérico.
         </p>
       )}
 
@@ -105,13 +107,15 @@ export function GuardianStudentDetailPage() {
                     size="xl"
                     className="h-24 w-24"
                   />
-                  <span className="text-xs text-ink-muted">Ícone de perfil (sem foto)</span>
+                  <span className="text-xs text-ink-muted">
+                    {faceEnrolled ? 'Ícone · rosto vetorizado' : 'Ícone de perfil'}
+                  </span>
                 </div>
               )}
             </div>
             <div className="mt-3">
-              <Badge variant={hasPhoto ? 'success' : 'neutral'}>
-                {hasPhoto ? 'Foto ok' : 'Usando ícone'}
+              <Badge variant={faceEnrolled ? 'success' : 'warning'}>
+                {faceEnrolled ? 'Reconhecimento ok' : 'Sem template'}
               </Badge>
             </div>
           </CardBody>

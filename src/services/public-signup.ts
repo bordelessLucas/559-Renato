@@ -4,9 +4,9 @@ import {
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { getAuthErrorMessage } from '../lib/auth-errors'
-import { isStorageEnabled, STORAGE_PENDING_MESSAGE } from '../lib/storage-config'
 import { createGuardian, getGuardianByUserId } from './guardians'
-import { createStudent, updateStudent, uploadStudentPhoto } from './students'
+import { createStudent } from './students'
+import { enrollFaceFromImageFile } from './face-recognition'
 import { createUserProfile, getUserProfile } from './users'
 import { getSchoolById } from './schools'
 import type { School } from '../types/school'
@@ -171,6 +171,8 @@ export async function submitPublicSignup(payload: PublicSignupPayload): Promise<
       .join(' · '),
     photoUrl: '',
     photoPath: '',
+    faceEnrolled: false,
+    faceTemplateCount: 0,
     schoolId: payload.schoolId,
     guardianIds: [guardian.id],
     guardianUserIds: [uid],
@@ -184,27 +186,16 @@ export async function submitPublicSignup(payload: PublicSignupPayload): Promise<
       guardianId: guardian.id,
       uid,
       photoPending: true,
-      photoMessage: isStorageEnabled()
-        ? 'Cadastro concluído. Você pode enviar a foto depois pela área do responsável.'
-        : STORAGE_PENDING_MESSAGE,
-    }
-  }
-
-  if (!isStorageEnabled()) {
-    return {
-      studentId,
-      guardianId: guardian.id,
-      uid,
-      photoPending: true,
-      photoMessage: STORAGE_PENDING_MESSAGE,
+      photoMessage:
+        'Cadastro concluído. Envie a foto do rosto depois para ativar o reconhecimento (a imagem vira cálculo e não fica guardada).',
     }
   }
 
   try {
-    const uploaded = await uploadStudentPhoto(studentId, payload.schoolId, payload.photoFile)
-    await updateStudent(studentId, {
-      photoUrl: uploaded.photoUrl,
-      photoPath: uploaded.photoPath,
+    await enrollFaceFromImageFile({
+      studentId,
+      schoolId: payload.schoolId,
+      file: payload.photoFile,
     })
     return { studentId, guardianId: guardian.id, uid, photoPending: false }
   } catch (error) {
@@ -215,8 +206,8 @@ export async function submitPublicSignup(payload: PublicSignupPayload): Promise<
       photoPending: true,
       photoMessage:
         error instanceof Error
-          ? `Cadastro salvo, mas a foto não foi enviada: ${error.message}`
-          : 'Cadastro salvo, mas a foto não foi enviada.',
+          ? `Cadastro salvo, mas o rosto não foi vetorizado: ${error.message}`
+          : 'Cadastro salvo, mas o rosto não foi vetorizado.',
     }
   }
 }

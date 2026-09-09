@@ -7,7 +7,6 @@ import { Badge, Button, PageSkeleton, StudentAvatar } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
 import { getGuardianByUserId } from '../services/guardians'
 import { listStudentsForGuardianUser } from '../services/students'
-import { isStorageEnabled, STORAGE_PENDING_MESSAGE } from '../lib/storage-config'
 import type { Student } from '../types/student'
 import { STUDENT_SHIFT_LABELS } from '../types/common'
 
@@ -22,7 +21,6 @@ export function GuardianHomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [hasGuardianRecord, setHasGuardianRecord] = useState(true)
-  const storageEnabled = isStorageEnabled()
 
   const load = async () => {
     if (!profile) return
@@ -48,7 +46,7 @@ export function GuardianHomePage() {
   if (error) return <ErrorState description={error} onRetry={load} />
 
   const firstName = profile?.name?.split(' ')[0] || 'olá'
-  const pendingPhotos = students.filter((s) => !s.photoUrl).length
+  const pendingFace = students.filter((s) => !s.faceEnrolled).length
 
   return (
     <div className="space-y-6">
@@ -79,18 +77,17 @@ export function GuardianHomePage() {
             {students.length} {students.length === 1 ? 'dependente' : 'dependentes'}
           </Badge>
         )}
-        {pendingPhotos > 0 && (
-          <Badge variant="neutral">
-            {pendingPhotos === 1 ? '1 com ícone de perfil' : `${pendingPhotos} com ícone de perfil`}
+        {pendingFace > 0 && (
+          <Badge variant="warning">
+            {pendingFace === 1 ? '1 sem reconhecimento' : `${pendingFace} sem reconhecimento`}
           </Badge>
         )}
       </div>
 
-      {!storageEnabled && (
-        <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
-          {STORAGE_PENDING_MESSAGE} Você já pode cadastrar e editar os dependentes normalmente.
-        </p>
-      )}
+      <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
+        A foto do rosto vira um padrão numérico (embedding) e não fica armazenada. Sem esse cadastro,
+        a entrada automática e o aviso aos pais podem falhar.
+      </p>
 
       {!hasGuardianRecord ? (
         <EmptyState
@@ -122,8 +119,11 @@ export function GuardianHomePage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate font-semibold text-ink">{student.name}</h2>
-                      {!student.photoUrl && (
-                        <span className="text-xs font-medium text-ink-muted">Ícone de perfil</span>
+                      {!student.faceEnrolled && (
+                        <span className="text-xs font-medium text-warning-700">Sem reconhecimento</span>
+                      )}
+                      {student.faceEnrolled && (
+                        <span className="text-xs font-medium text-success-700">Rosto ok</span>
                       )}
                     </div>
                     <p className="mt-0.5 text-sm text-ink-muted">

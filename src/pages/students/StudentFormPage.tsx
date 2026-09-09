@@ -18,14 +18,12 @@ import { useAuth } from '../../contexts/AuthContext'
 import { RequirePermission } from '../../routes/RequirePermission'
 import {
   createStudent,
-  deleteStudentPhoto,
   getStudentById,
-  relocateStudentPhoto,
   updateStudent,
-  uploadStudentPhoto,
   userIdsFromGuardians,
   validateStudentPhoto,
 } from '../../services/students'
+import { enrollFaceFromImageFile } from '../../services/face-recognition'
 import { listSchoolsForProfile } from '../../services/schools'
 import { listGuardiansForProfile } from '../../services/guardians'
 import type { School } from '../../types/school'
@@ -72,7 +70,6 @@ export function StudentFormPage() {
   const [guardianIds, setGuardianIds] = useState<string[]>([])
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
-  const [removePhoto, setRemovePhoto] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -104,7 +101,8 @@ export function StudentFormPage() {
           setNotes(student.notes)
           setSchoolId(student.schoolId)
           setGuardianIds(student.guardianIds)
-          setPhotoPreview(student.photoUrl)
+          setPhotoPreview('')
+          setPhotoFile(null)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar formulário.')
@@ -147,7 +145,6 @@ export function StudentFormPage() {
     try {
       validateStudentPhoto(file)
       setPhotoFile(file)
-      setRemovePhoto(false)
       setPhotoPreview(URL.createObjectURL(file))
       setErrors((current) => ({ ...current, photo: '' }))
     } catch (err) {
@@ -174,31 +171,20 @@ export function StudentFormPage() {
     return Object.keys(next).length === 0
   }
 
-  const persistPhoto = async (studentId: string, nextSchoolId: string) => {
-    if (removePhoto) {
-      if (existing?.photoPath) await deleteStudentPhoto(existing.photoPath)
-      return { photoUrl: '', photoPath: '' }
-    }
-
-    if (photoFile) {
-      if (existing?.photoPath) {
-        try {
-          await deleteStudentPhoto(existing.photoPath)
-        } catch {
-          // a foto anterior pode já ter sido removida
-        }
+  const persistFaceTemplate = async (studentId: string, nextSchoolId: string, isNew: boolean) => {
+    if (!photoFile) {
+      return {
+        faceEnrolled: existing?.faceEnrolled ?? false,
+        faceTemplateCount: existing?.faceTemplateCount ?? 0,
       }
-      return uploadStudentPhoto(studentId, nextSchoolId, photoFile)
     }
-
-    if (existing?.photoPath && existing.schoolId !== nextSchoolId) {
-      return relocateStudentPhoto(existing, nextSchoolId)
-    }
-
-    return {
-      photoUrl: existing?.photoUrl || '',
-      photoPath: existing?.photoPath || '',
-    }
+    await enrollFaceFromImageFile({
+      studentId,
+      schoolId: nextSchoolId,
+      file: photoFile,
+      reenrollment: !isNew && Boolean(existing?.faceEnrolled),
+    })
+    return { faceEnrolled: true, faceTemplateCount: 1 }
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -219,29 +205,33 @@ export function StudentFormPage() {
         guardianIds,
         guardianUserIds: userIdsFromGuardians(guardians, guardianIds),
         isDemo: existing?.isDemo ?? false,
+        photoUrl: '',
+        photoPath: '',
       }
 
       if (isEdit && id && existing) {
-        const photo = await persistPhoto(id, schoolId)
-        await updateStudent(id, { ...base, ...photo })
-        toast({ variant: 'success', title: 'Aluno atualizado' })
+        const faceFlags = await persistFaceTemplate(id, schoolId, false)
+        await updateStudent(id, { ...base, ...faceFlags })
+        toast({
+          variant: 'success',
+          title: photoFile ? 'Aluno atualizado · rosto vetorizado' : 'Aluno atualizado',
+        })
         navigate(`/app/alunos/${id}`)
       } else {
         const newId = await createStudent({
           ...base,
-          photoUrl: '',
-          photoPath: '',
+          faceEnrolled: false,
+          faceTemplateCount: 0,
           isDemo: false,
           status: 'ativo',
         })
         try {
-          const photo = await persistPhoto(newId, schoolId)
-          if (photo.photoUrl) await updateStudent(newId, photo)
-        } catch (photoError) {
+          if (photoFile) await persistFaceTemplate(newId, schoolId, true)
+        } catch (faceError) {
           toast({
             variant: 'warning',
-            title: 'Aluno cadastrado sem a foto',
-            description: photoError instanceof Error ? photoError.message : undefined,
+            title: 'Aluno cadastrado sem vetorização',
+            description: faceError instanceof Error ? faceError.message : undefined,
           })
           navigate(`/app/alunos/${newId}`)
           return
@@ -344,18 +334,23 @@ export function StudentFormPage() {
 
             <Card>
               <CardHeader>
-                <h2 className="text-sm font-semibold text-ink">Foto de identificação</h2>
+                <h2 className="text-sm font-semibold text-ink">Rosto para reconhecimento</h2>
               </CardHeader>
               <CardBody>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                   <div className="h-28 w-28 overflow-hidden rounded-xl border border-line bg-surface-muted">
-                    {photoPreview && !removePhoto ? (
-                      <img src={photoPreview} alt="Foto do aluno" className="h-full w-full object-cover" />
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Prévia temporária" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-ink-subtle">Sem foto</div>
+                      <div className="flex h-full items-center justify-center px-2 text-center text-xs text-ink-subtle">
+                        {existing?.faceEnrolled ? 'Template ok' : 'Sem vetor'}
+                      </div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1 space-y-3">
+                    <p className="text-sm text-ink-muted">
+                      A imagem só serve para gerar o embedding. Não fica armazenada após o cadastro.
+                    </p>
                     <Input
                       label="Enviar imagem"
                       type="file"
@@ -364,20 +359,19 @@ export function StudentFormPage() {
                       disabled={submitting}
                       className="h-auto py-2"
                       onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
-                      hint="JPG, PNG ou WEBP até 5 MB. Sem uso de câmera nesta etapa."
+                      hint="JPG, PNG ou WEBP até 5 MB."
                     />
-                    {photoPreview && !removePhoto && (
+                    {photoPreview && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => {
                           setPhotoFile(null)
-                          setRemovePhoto(true)
                           setPhotoPreview('')
                         }}
                       >
-                        Remover foto
+                        Remover prévia
                       </Button>
                     )}
                   </div>

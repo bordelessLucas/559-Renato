@@ -11,7 +11,11 @@ function mapAlert(id: string, data: Record<string, unknown>): SchoolAlert {
     studentId: String(data.studentId ?? ''),
     studentName: String(data.studentName ?? ''),
     kind:
-      data.kind === 'atraso' || data.kind === 'ausencia' || data.kind === 'ocorrencia'
+      data.kind === 'atraso' ||
+      data.kind === 'ausencia' ||
+      data.kind === 'ocorrencia' ||
+      data.kind === 'nao_reconhecido' ||
+      data.kind === 'revisao_facial'
         ? data.kind
         : 'ocorrencia',
     message: String(data.message ?? ''),
@@ -61,4 +65,6 @@ export const ALERT_KIND_LABELS: Record<AlertKind, string> = {
   atraso: 'Atraso',
   ausencia: 'Ausência',
   ocorrencia: 'Ocorrência',
+  nao_reconhecido: 'Não reconhecido',
+  revisao_facial: 'Revisão facial',
 }

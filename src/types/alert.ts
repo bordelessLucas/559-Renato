@@ -1,6 +1,6 @@
 import type { Timestamp } from 'firebase/firestore'
 
-export type AlertKind = 'atraso' | 'ausencia' | 'ocorrencia'
+export type AlertKind = 'atraso' | 'ausencia' | 'ocorrencia' | 'nao_reconhecido' | 'revisao_facial'
 
 export interface SchoolAlert {
   id: string

@@ -20,14 +20,12 @@ import { RequirePermission } from '../../routes/RequirePermission'
 import { getGuardianByUserId } from '../../services/guardians'
 import {
   createStudent,
-  deleteStudentPhoto,
   getStudentById,
   updateStudent,
-  uploadStudentPhoto,
   validateStudentPhoto,
 } from '../../services/students'
+import { enrollFaceFromImageFile } from '../../services/face-recognition'
 import { isGuardianUser } from '../../lib/permissions'
-import { isStorageEnabled, STORAGE_PENDING_MESSAGE } from '../../lib/storage-config'
 import type { Student } from '../../types/student'
 import { STUDENT_GENDER_LABELS, STUDENT_SHIFT_LABELS, type StudentGender, type StudentShift } from '../../types/common'
 
@@ -50,7 +48,6 @@ export function GuardianStudentFormPage() {
   const { profile, schoolName } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const storageEnabled = isStorageEnabled()
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -69,7 +66,6 @@ export function GuardianStudentFormPage() {
   const [notes, setNotes] = useState('')
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
-  const [removePhoto, setRemovePhoto] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -98,7 +94,7 @@ export function GuardianStudentFormPage() {
           setClassName(student.className)
           setShift(student.shift)
           setNotes(student.notes)
-          setPhotoPreview(student.photoUrl)
+          setPhotoPreview('')
           if (student.birthDate || student.enrollmentCode || student.className || student.shift || student.notes) {
             setShowExtras(true)
           }
@@ -120,7 +116,6 @@ export function GuardianStudentFormPage() {
     try {
       validateStudentPhoto(file)
       setPhotoFile(file)
-      setRemovePhoto(false)
       setPhotoPreview(URL.createObjectURL(file))
       setErrors((current) => ({ ...current, photo: '' }))
     } catch (err) {
@@ -145,28 +140,21 @@ export function GuardianStudentFormPage() {
     return Object.keys(next).length === 0
   }
 
-  const persistPhoto = async (studentId: string, schoolId: string) => {
-    if (removePhoto) {
-      if (existing?.photoPath && storageEnabled) await deleteStudentPhoto(existing.photoPath)
-      return { photoUrl: '', photoPath: '' }
-    }
-    if (photoFile) {
-      if (!storageEnabled) {
-        throw new Error(STORAGE_PENDING_MESSAGE)
+  /** Vetoriza a foto e descarta — não grava imagem no Storage. */
+  const persistFaceTemplate = async (studentId: string, schoolId: string, isNew: boolean) => {
+    if (!photoFile) {
+      return {
+        faceEnrolled: existing?.faceEnrolled ?? false,
+        faceTemplateCount: existing?.faceTemplateCount ?? 0,
       }
-      if (existing?.photoPath) {
-        try {
-          await deleteStudentPhoto(existing.photoPath)
-        } catch {
-          // ignore
-        }
-      }
-      return uploadStudentPhoto(studentId, schoolId, photoFile)
     }
-    return {
-      photoUrl: existing?.photoUrl || '',
-      photoPath: existing?.photoPath || '',
-    }
+    await enrollFaceFromImageFile({
+      studentId,
+      schoolId,
+      file: photoFile,
+      reenrollment: !isNew && Boolean(existing?.faceEnrolled),
+    })
+    return { faceEnrolled: true, faceTemplateCount: 1 }
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -188,23 +176,27 @@ export function GuardianStudentFormPage() {
         guardianIds: [guardianId],
         guardianUserIds: [profile.id],
         isDemo: existing?.isDemo ?? false,
+        // Privacy-first: não persistimos foto; só template
+        photoUrl: '',
+        photoPath: '',
       }
 
       if (isEdit && id && existing) {
-        let photo = {
-          photoUrl: existing.photoUrl || '',
-          photoPath: existing.photoPath || '',
+        let faceFlags = {
+          faceEnrolled: existing.faceEnrolled,
+          faceTemplateCount: existing.faceTemplateCount,
         }
         try {
-          photo = await persistPhoto(id, schoolId)
-        } catch (photoError) {
+          faceFlags = await persistFaceTemplate(id, schoolId, false)
+        } catch (faceError) {
           toast({
             variant: 'warning',
-            title: 'Dados salvos; foto não enviada',
-            description: photoError instanceof Error ? photoError.message : undefined,
+            title: 'Dados salvos; rosto não vetorizado',
+            description: faceError instanceof Error ? faceError.message : undefined,
           })
           await updateStudent(id, {
             ...base,
+            ...faceFlags,
             status: existing.status,
             guardianIds: existing.guardianIds.includes(guardianId)
               ? existing.guardianIds
@@ -218,7 +210,7 @@ export function GuardianStudentFormPage() {
         }
         await updateStudent(id, {
           ...base,
-          ...photo,
+          ...faceFlags,
           status: existing.status,
           guardianIds: existing.guardianIds.includes(guardianId)
             ? existing.guardianIds
@@ -227,28 +219,38 @@ export function GuardianStudentFormPage() {
             ? existing.guardianUserIds
             : [...existing.guardianUserIds, profile.id],
         })
-        toast({ variant: 'success', title: 'Dependente atualizado' })
+        toast({
+          variant: 'success',
+          title: photoFile ? 'Dependente atualizado · rosto vetorizado' : 'Dependente atualizado',
+        })
         navigate(`/app/responsavel/alunos/${id}`)
       } else {
         const newId = await createStudent({
           ...base,
-          photoUrl: '',
-          photoPath: '',
+          faceEnrolled: false,
+          faceTemplateCount: 0,
           isDemo: false,
           status: 'ativo',
         })
         try {
-          const photo = await persistPhoto(newId, schoolId)
-          if (photo.photoUrl) await updateStudent(newId, photo)
-          toast({ variant: 'success', title: 'Dependente cadastrado' })
-        } catch (photoError) {
+          if (photoFile) {
+            await persistFaceTemplate(newId, schoolId, true)
+            toast({ variant: 'success', title: 'Dependente cadastrado · rosto vetorizado' })
+          } else {
+            toast({
+              variant: 'success',
+              title: 'Dependente cadastrado',
+              description: 'Envie a foto depois para ativar o reconhecimento facial.',
+            })
+          }
+        } catch (faceError) {
           toast({
             variant: 'warning',
             title: 'Dependente cadastrado',
             description:
-              photoError instanceof Error
-                ? photoError.message
-                : 'Cadastro ok. A foto pode ficar pendente nesta fase.',
+              faceError instanceof Error
+                ? faceError.message
+                : 'Cadastro ok. O rosto pode ser vetorizado depois.',
           })
         }
         navigate(`/app/responsavel/alunos/${newId}`)
@@ -361,36 +363,34 @@ export function GuardianStudentFormPage() {
 
             <Card>
               <CardHeader className="flex flex-wrap items-center gap-2">
-                <h2 className="text-sm font-semibold text-ink">Foto do rosto</h2>
-                <Badge variant={storageEnabled ? 'brand' : 'warning'}>
-                  {storageEnabled ? 'Recomendada' : 'Opcional agora'}
+                <h2 className="text-sm font-semibold text-ink">Rosto para reconhecimento</h2>
+                <Badge variant={existing?.faceEnrolled ? 'success' : 'brand'}>
+                  {existing?.faceEnrolled ? 'Já vetorizado' : 'Vira cálculo, não fica salva'}
                 </Badge>
               </CardHeader>
               <CardBody className="space-y-4">
                 <p className="text-sm text-ink-muted">
-                  {storageEnabled
-                    ? 'Use uma foto nítida, de frente, para o reconhecimento nas câmeras da escola.'
-                    : 'Nesta fase a foto não é obrigatória. Você pode capturar para validar o fluxo visual; o envio permanente depende do Storage.'}
+                  A foto é usada só para gerar o padrão numérico (embedding). Depois é descartada —
+                  não guardamos imagem de criança no banco. Use foto nítida, de frente.
                 </p>
-                {!storageEnabled && (
-                  <p className="rounded-lg border border-warning-600/20 bg-warning-50 px-3 py-2 text-xs text-warning-700">
-                    {STORAGE_PENDING_MESSAGE}
+                {existing?.faceEnrolled && !photoFile && (
+                  <p className="rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink-muted">
+                    Já existe template facial. Envie uma nova foto apenas se quiser recadastrar o
+                    rosto.
                   </p>
                 )}
                 <CameraCapture
-                  previewUrl={photoPreview && !removePhoto ? photoPreview : ''}
+                  previewUrl={photoPreview}
                   onCapture={(file, url) => {
                     if (photoPreview) URL.revokeObjectURL(photoPreview)
                     setPhotoFile(file)
                     setPhotoPreview(url)
-                    setRemovePhoto(false)
                     setErrors((current) => ({ ...current, photo: '' }))
                   }}
                   onClear={() => {
                     if (photoPreview) URL.revokeObjectURL(photoPreview)
                     setPhotoFile(null)
                     setPhotoPreview('')
-                    setRemovePhoto(true)
                   }}
                 />
                 <label className="inline-flex">

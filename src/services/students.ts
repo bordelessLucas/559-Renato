@@ -44,6 +44,9 @@ function mapStudent(id: string, data: Record<string, unknown>): Student {
     notes: String(data.notes ?? ''),
     photoUrl: String(data.photoUrl ?? ''),
     photoPath: String(data.photoPath ?? ''),
+    faceEnrolled: Boolean(data.faceEnrolled),
+    faceTemplateCount:
+      typeof data.faceTemplateCount === 'number' ? data.faceTemplateCount : data.faceEnrolled ? 1 : 0,
     schoolId: String(data.schoolId ?? ''),
     guardianIds: rawGuardians.map((item) => String(item)).filter(Boolean),
     guardianUserIds: (Array.isArray(data.guardianUserIds) ? data.guardianUserIds : [])

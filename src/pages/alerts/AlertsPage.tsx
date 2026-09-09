@@ -125,6 +125,8 @@ export function AlertsPage() {
                 { value: 'atraso', label: 'Atraso' },
                 { value: 'ausencia', label: 'Ausência' },
                 { value: 'ocorrencia', label: 'Ocorrência' },
+                { value: 'nao_reconhecido', label: 'Não reconhecido' },
+                { value: 'revisao_facial', label: 'Revisão facial' },
               ]}
             />
             <div className="sm:col-span-2">

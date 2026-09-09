@@ -39,12 +39,13 @@ export interface FaceRecognitionProvider {
    */
   normalizeEvent(raw: unknown): Promise<FaceRecognitionEvent>
   /**
-   * Opcional: comparação online foto ↔ base (quando o provedor expuser).
-   * Stub lança indicando bloqueio externo.
+   * Comparação online: frame → embedding → galeria da escola.
+   * Preferir FaceGalleryMatcher.identify no fluxo novo.
    */
   identify?(params: {
     schoolId: string
     imageBytes: ArrayBuffer
     cameraPointId: string
+    cameraPointKind?: FaceRecognitionEvent['cameraPointKind']
   }): Promise<FaceRecognitionMatchResult | null>
 }
