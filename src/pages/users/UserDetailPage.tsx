@@ -9,7 +9,7 @@ import { getUserProfile, setUserStatus } from '../../services/users'
 import { getSchoolById } from '../../services/schools'
 import type { AppUser } from '../../types/user'
 import { USER_ROLE_LABELS, type EntityStatus } from '../../types/common'
-import { canAccessSchoolScoped } from '../../lib/permissions'
+import { canAccessSchoolScoped, canViewUserRecord } from '../../lib/permissions'
 
 export function UserDetailPage() {
   const { id } = useParams()
@@ -34,7 +34,15 @@ export function UserDetailPage() {
         setError('Usuário não encontrado.')
         return
       }
-      if (!canAccessSchoolScoped(profile, data.schoolId)) {
+      if (!canViewUserRecord(profile, data)) {
+        setError(
+          data.role === 'responsavel'
+            ? 'Por LGPD, o dono do sistema não acessa contas de responsáveis. Use o admin da escola.'
+            : 'Você não tem permissão para visualizar este usuário.',
+        )
+        return
+      }
+      if (!canAccessSchoolScoped(profile, data.schoolId) && data.role !== 'administrador_geral') {
         setError('Você não tem permissão para visualizar este usuário.')
         return
       }

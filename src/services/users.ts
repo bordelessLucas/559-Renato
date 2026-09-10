@@ -13,7 +13,7 @@ import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth'
 import { app, db } from '../lib/firebase'
 import { usersCollection, withTimestamps } from '../lib/firestore'
 import { getAuthErrorMessage } from '../lib/auth-errors'
-import { isGeneralAdmin, normalizeRole } from '../lib/permissions'
+import { isGeneralAdmin, normalizeRole, isSystemStaffRole } from '../lib/permissions'
 import type { AppUser, AppUserInput } from '../types/user'
 import type { EntityStatus } from '../types/common'
 
@@ -44,11 +44,30 @@ export async function listUsers(): Promise<AppUser[]> {
 
 export async function listUsersForProfile(profile: AppUser): Promise<AppUser[]> {
   if (isGeneralAdmin(profile)) {
-    return listUsers()
+    // LGPD: consulta só perfis de equipe — não traz responsáveis
+    const snap = await getDocs(
+      query(
+        usersCollection,
+        where('role', 'in', [
+          'administrador_geral',
+          'administrador_escola',
+          'operador',
+          'administrador',
+        ]),
+      ),
+    )
+    return snap.docs
+      .map((item) => mapUser(item.id, item.data()))
+      .filter((user) => isSystemStaffRole(user.role))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
   }
 
   const snap = await getDocs(
-    query(usersCollection, where('schoolId', '==', profile.schoolId)),
+    query(
+      usersCollection,
+      where('schoolId', '==', profile.schoolId),
+      where('role', 'in', ['administrador_escola', 'operador', 'responsavel']),
+    ),
   )
   return snap.docs
     .map((item) => mapUser(item.id, item.data()))

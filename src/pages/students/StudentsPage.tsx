@@ -27,10 +27,11 @@ import type { Student } from '../../types/student'
 import type { School } from '../../types/school'
 import type { Guardian } from '../../types/guardian'
 import { STUDENT_SHIFT_LABELS, type EntityStatus, type StudentShift } from '../../types/common'
-import { canAccessSchoolScoped } from '../../lib/permissions'
+import { canAccessSchoolScoped, canViewStudents } from '../../lib/permissions'
+import { RequirePermission } from '../../routes/RequirePermission'
 
 export function StudentsPage() {
-  const { profile, canManageStudents, isGeneralAdmin } = useAuth()
+  const { profile, canManageStudents } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -41,7 +42,6 @@ export function StudentsPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<EntityStatus | 'todos'>('todos')
-  const [schoolId, setSchoolId] = useState<string | 'todos'>('todos')
   const [shift, setShift] = useState<StudentShift | 'todos'>('todos')
   const [pending, setPending] = useState<Student | null>(null)
   const [saving, setSaving] = useState(false)
@@ -84,7 +84,6 @@ export function StudentsPage() {
     return students.filter((student) => {
       if (!canAccessSchoolScoped(profile, student.schoolId)) return false
       if (status !== 'todos' && student.status !== status) return false
-      if (schoolId !== 'todos' && student.schoolId !== schoolId) return false
       if (shift !== 'todos' && student.shift !== shift) return false
       if (!debouncedSearch) return true
       const guardianNames = student.guardianIds
@@ -93,7 +92,7 @@ export function StudentsPage() {
       const haystack = `${student.name} ${student.enrollmentCode} ${student.className} ${guardianNames}`.toLowerCase()
       return haystack.includes(debouncedSearch)
     })
-  }, [students, status, schoolId, shift, debouncedSearch, profile, guardianMap])
+  }, [students, status, shift, debouncedSearch, profile, guardianMap])
 
   const { pageItems, PaginationBar } = useClientPagination(filtered)
 
@@ -121,12 +120,13 @@ export function StudentsPage() {
   if (error) return <ErrorState description={error} onRetry={load} />
 
   return (
+    <RequirePermission allowed={canViewStudents(profile)}>
     <div>
       <PageHeader
         title="Alunos"
         description={
           canManageStudents
-            ? 'Cadastre, consulte e atualize alunos por escola, turma e responsáveis.'
+            ? 'Cadastre, consulte e atualize alunos da sua escola.'
             : 'Consulte os alunos da sua escola para identificar quem está na entrada e na saída.'
         }
         action={
@@ -142,13 +142,7 @@ export function StudentsPage() {
         searchPlaceholder="Buscar por nome, matrícula, turma ou responsável..."
         status={status}
         onStatusChange={setStatus}
-        showSchoolFilter={isGeneralAdmin}
-        schoolId={schoolId}
-        onSchoolChange={setSchoolId}
-        schoolOptions={schools.map((school) => ({
-          value: school.id,
-          label: school.tradeName || school.name,
-        }))}
+        showSchoolFilter={false}
         extra={
           <div className="w-full sm:w-44">
             <Select
@@ -270,5 +264,6 @@ export function StudentsPage() {
         onConfirm={toggleStatus}
       />
     </div>
+    </RequirePermission>
   )
 }

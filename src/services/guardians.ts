@@ -41,7 +41,8 @@ export async function listGuardians(): Promise<Guardian[]> {
 
 export async function listGuardiansForProfile(profile: AppUser): Promise<Guardian[]> {
   if (isGeneralAdmin(profile)) {
-    return listGuardians()
+    // LGPD: admin geral não acessa responsáveis
+    return []
   }
 
   const snap = await getDocs(

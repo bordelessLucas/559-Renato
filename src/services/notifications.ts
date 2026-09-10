@@ -5,6 +5,8 @@ import type {
   NotificationAttempt,
   NotificationAttemptStatus,
   NotificationChannelProvider,
+  NotificationKind,
+  NoticeAudienceScope,
 } from '../types/notification'
 import type { MovementType } from '../types/movement'
 import type { AppUser } from '../types/user'
@@ -36,7 +38,6 @@ export class PendingNotificationProvider implements NotificationChannelProvider 
   }
 }
 
-/** Default mock para demos — troca para Pending quando quiser sinalizar bloqueio. */
 let activeNotificationProvider: NotificationChannelProvider = new MockNotificationProvider()
 
 export function getNotificationProvider(): NotificationChannelProvider {
@@ -47,18 +48,48 @@ export function setNotificationProvider(provider: NotificationChannelProvider) {
   activeNotificationProvider = provider
 }
 
+function mapKind(raw: unknown, movementType: MovementType | ''): NotificationKind {
+  const value = String(raw ?? '')
+  const allowed: NotificationKind[] = [
+    'entrada',
+    'saida',
+    'advertencia',
+    'aviso_geral',
+    'lembrete',
+    'reuniao',
+    'ocorrencia',
+    'custom',
+  ]
+  if (allowed.includes(value as NotificationKind)) return value as NotificationKind
+  if (movementType === 'saida') return 'saida'
+  if (movementType === 'entrada') return 'entrada'
+  return 'custom'
+}
+
 function mapAttempt(id: string, data: Record<string, unknown>): NotificationAttempt {
+  const movementType: MovementType | '' =
+    data.movementType === 'saida' ? 'saida' : data.movementType === 'entrada' ? 'entrada' : ''
+
   return {
     id,
     schoolId: String(data.schoolId ?? ''),
     studentId: String(data.studentId ?? ''),
+    studentName: String(data.studentName ?? ''),
     movementId: String(data.movementId ?? ''),
-    movementType: data.movementType === 'saida' ? 'saida' : 'entrada',
+    movementType,
+    kind: mapKind(data.kind, movementType),
+    title: String(data.title ?? ''),
+    noticeId: String(data.noticeId ?? ''),
+    scope:
+      data.scope === 'escola' || data.scope === 'turma' || data.scope === 'aluno'
+        ? data.scope
+        : '',
     channel:
       data.channel === 'sms' || data.channel === 'whatsapp' || data.channel === 'pending'
         ? data.channel
         : 'pending',
     recipientPhone: String(data.recipientPhone ?? ''),
+    recipientName: String(data.recipientName ?? ''),
     message: String(data.message ?? ''),
     status: (['queued', 'sent', 'failed', 'skipped'].includes(String(data.status))
       ? data.status
@@ -101,15 +132,44 @@ export async function listNotificationAttemptsForProfile(
   return snap.docs.map((item) => mapAttempt(item.id, item.data()))
 }
 
-/**
- * Persiste tentativa e simula envio. Nunca lança — falhas viram status failed/skipped.
- */
 export async function enqueueMovementNotification(params: {
   schoolId: string
   studentId: string
+  studentName?: string
   movementId: string
   movementType: MovementType
   recipientPhone: string
+  recipientName?: string
+  message: string
+}): Promise<{ status: NotificationAttemptStatus; reason?: string; attemptId?: string }> {
+  return enqueueNotificationAttempt({
+    schoolId: params.schoolId,
+    studentId: params.studentId,
+    studentName: params.studentName || '',
+    movementId: params.movementId,
+    movementType: params.movementType,
+    kind: params.movementType,
+    title: params.movementType === 'entrada' ? 'Entrada' : 'Saída',
+    noticeId: '',
+    scope: '',
+    recipientPhone: params.recipientPhone,
+    recipientName: params.recipientName || '',
+    message: params.message,
+  })
+}
+
+export async function enqueueNotificationAttempt(params: {
+  schoolId: string
+  studentId: string
+  studentName: string
+  movementId: string
+  movementType: MovementType | ''
+  kind: NotificationKind
+  title: string
+  noticeId: string
+  scope: NoticeAudienceScope | ''
+  recipientPhone: string
+  recipientName: string
   message: string
 }): Promise<{ status: NotificationAttemptStatus; reason?: string; attemptId?: string }> {
   const provider = getNotificationProvider()
@@ -196,6 +256,7 @@ export async function simulateMovementNotification(params: {
   return enqueueMovementNotification({
     schoolId: params.schoolId,
     studentId: params.studentId,
+    studentName: params.studentName,
     movementId: `manual-${Timestamp.now().toMillis()}`,
     movementType: params.movementType,
     recipientPhone: params.recipientPhone,

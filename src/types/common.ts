@@ -15,8 +15,8 @@ export const BRAZILIAN_STATES = [
 ] as const
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
-  administrador_geral: 'Administrador geral',
-  administrador_escola: 'Administrador da escola',
+  administrador_geral: 'Dono do sistema',
+  administrador_escola: 'Admin',
   operador: 'Operador',
   responsavel: 'Responsável',
 }

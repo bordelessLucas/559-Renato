@@ -22,9 +22,15 @@ function canSeeNavItem(itemId: string, profile: ReturnType<typeof useAuth>['prof
   }
 
   if (isOperator(profile)) {
-    return ['dashboard', 'students', 'movements', 'attendance', 'alerts', 'notifications'].includes(
-      itemId,
-    )
+    return [
+      'dashboard',
+      'students',
+      'guardians',
+      'movements',
+      'attendance',
+      'alerts',
+      'notifications',
+    ].includes(itemId)
   }
 
   if (isSchoolAdmin(profile)) {
@@ -42,7 +48,8 @@ function canSeeNavItem(itemId: string, profile: ReturnType<typeof useAuth>['prof
   }
 
   if (isGeneralAdmin(profile)) {
-    return true
+    // LGPD: sem acesso voluntário a alunos/responsáveis (dados de criança/família)
+    return ['dashboard', 'schools', 'users'].includes(itemId)
   }
 
   return itemId === 'dashboard'

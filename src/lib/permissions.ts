@@ -76,12 +76,31 @@ export function canManageUsers(profile: AppUser | null | undefined): boolean {
   return isGeneralAdmin(profile) || isSchoolAdmin(profile)
 }
 
+/** Dados de crianças/famílias: só equipe da própria escola (LGPD). */
+export function canViewStudents(profile: AppUser | null | undefined): boolean {
+  return isSchoolAdmin(profile) || isOperator(profile)
+}
+
+export function canViewGuardians(profile: AppUser | null | undefined): boolean {
+  return isSchoolAdmin(profile) || isOperator(profile)
+}
+
 export function canManageGuardians(profile: AppUser | null | undefined): boolean {
-  return isGeneralAdmin(profile) || isSchoolAdmin(profile)
+  return isSchoolAdmin(profile)
 }
 
 export function canManageStudents(profile: AppUser | null | undefined): boolean {
-  return isGeneralAdmin(profile) || isSchoolAdmin(profile)
+  return isSchoolAdmin(profile)
+}
+
+/** Perfis operacionais do sistema — sem responsável (dado familiar). */
+export function isSystemStaffRole(role: UserRole | string): boolean {
+  const normalized = normalizeRole(role)
+  return (
+    normalized === 'administrador_geral' ||
+    normalized === 'administrador_escola' ||
+    normalized === 'operador'
+  )
 }
 
 export function canCreateRole(
@@ -92,7 +111,12 @@ export function canCreateRole(
   const role = normalizeRole(actor.role)
 
   if (role === 'administrador_geral') {
-    return true
+    // LGPD: admin geral não cria contas de responsável (pai/mãe)
+    return (
+      targetRole === 'administrador_geral' ||
+      targetRole === 'administrador_escola' ||
+      targetRole === 'operador'
+    )
   }
 
   if (role === 'administrador_escola') {
@@ -106,12 +130,28 @@ export function creatableRolesFor(actor: AppUser | null | undefined): UserRole[]
   if (!actor) return []
   const role = normalizeRole(actor.role)
   if (role === 'administrador_geral') {
-    return ['administrador_geral', 'administrador_escola', 'operador', 'responsavel']
+    return ['administrador_geral', 'administrador_escola', 'operador']
   }
   if (role === 'administrador_escola') {
     return ['operador', 'responsavel']
   }
   return []
+}
+
+/** Admin geral não visualiza contas de responsável (LGPD). */
+export function canViewUserRecord(
+  viewer: AppUser | null | undefined,
+  target: AppUser,
+): boolean {
+  if (!viewer || !isActiveProfile(viewer)) return false
+  if (isGeneralAdmin(viewer)) {
+    return isSystemStaffRole(target.role)
+  }
+  if (isSchoolAdmin(viewer) || isOperator(viewer)) {
+    if (normalizeRole(target.role) === 'administrador_geral') return false
+    return Boolean(viewer.schoolId) && target.schoolId === viewer.schoolId
+  }
+  return false
 }
 
 export function canViewSchool(

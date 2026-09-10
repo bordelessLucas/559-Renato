@@ -86,7 +86,7 @@ export function UserFormPage() {
     if (!name.trim()) next.name = 'Informe o nome completo.'
     if (!email.trim()) next.email = 'Informe o e-mail.'
     else if (!isValidEmail(email)) next.email = 'E-mail inválido.'
-    if (!schoolId) next.schoolId = 'Selecione a escola.'
+    if (role !== 'administrador_geral' && !schoolId) next.schoolId = 'Selecione a escola.'
     if (!role) next.role = 'Selecione o perfil.'
     else if (!canCreateRole(profile, role)) next.role = 'Você não pode atribuir este perfil.'
     if (!isEdit) {
@@ -187,16 +187,21 @@ export function UserFormPage() {
                   disabled={submitting}
                 />
                 <Select
-                  label="Escola"
+                  label={role === 'administrador_geral' ? 'Escola (opcional)' : 'Escola'}
                   value={schoolId}
                   onChange={(e) => setSchoolId(e.target.value)}
                   error={errors.schoolId}
                   disabled={submitting}
-                  placeholder="Selecione"
-                  options={schools.map((school) => ({
-                    value: school.id,
-                    label: school.tradeName || school.name,
-                  }))}
+                  placeholder={role === 'administrador_geral' ? 'Nenhuma (plataforma)' : 'Selecione'}
+                  options={[
+                    ...(role === 'administrador_geral'
+                      ? [{ value: '', label: 'Nenhuma (plataforma)' }]
+                      : []),
+                    ...schools.map((school) => ({
+                      value: school.id,
+                      label: school.tradeName || school.name,
+                    })),
+                  ]}
                 />
                 <Select
                   label="Perfil"

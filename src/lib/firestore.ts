@@ -20,6 +20,8 @@ export const studentsCollection = collection(db, 'students')
 export const faceTemplatesCollection = collection(db, 'faceTemplates')
 export const movementsCollection = collection(db, 'movements')
 export const notificationAttemptsCollection = collection(db, 'notificationAttempts')
+export const schoolNoticesCollection = collection(db, 'schoolNotices')
+export const guardianNoticesCollection = collection(db, 'guardianNotices')
 export const alertsCollection = collection(db, 'alerts')
 export const systemSettingsRef = doc(db, 'settings', 'system')
 

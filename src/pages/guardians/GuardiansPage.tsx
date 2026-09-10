@@ -23,10 +23,11 @@ import { listSchoolsForProfile } from '../../services/schools'
 import type { Guardian } from '../../types/guardian'
 import type { School } from '../../types/school'
 import { GUARDIAN_LINK_LABELS, type EntityStatus } from '../../types/common'
-import { canAccessSchoolScoped } from '../../lib/permissions'
+import { canAccessSchoolScoped, canViewGuardians } from '../../lib/permissions'
+import { RequirePermission } from '../../routes/RequirePermission'
 
 export function GuardiansPage() {
-  const { profile, canManageGuardians, isGeneralAdmin } = useAuth()
+  const { profile, canManageGuardians } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -36,7 +37,6 @@ export function GuardiansPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<EntityStatus | 'todos'>('todos')
-  const [schoolId, setSchoolId] = useState<string | 'todos'>('todos')
   const [pending, setPending] = useState<Guardian | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -72,12 +72,11 @@ export function GuardiansPage() {
     return guardians.filter((guardian) => {
       if (!canAccessSchoolScoped(profile, guardian.schoolId)) return false
       if (status !== 'todos' && guardian.status !== status) return false
-      if (schoolId !== 'todos' && guardian.schoolId !== schoolId) return false
       if (!debouncedSearch) return true
       const haystack = `${guardian.name} ${guardian.email} ${guardian.phonePrimary}`.toLowerCase()
       return haystack.includes(debouncedSearch)
     })
-  }, [guardians, status, schoolId, debouncedSearch, profile])
+  }, [guardians, status, debouncedSearch, profile])
 
   const { pageItems, PaginationBar } = useClientPagination(filtered)
 
@@ -105,122 +104,114 @@ export function GuardiansPage() {
   if (error) return <ErrorState description={error} onRetry={load} />
 
   return (
-    <div>
-      <PageHeader
-        title="Responsáveis"
-        description={
-          isGeneralAdmin
-            ? 'Gerencie os responsáveis cadastrados nas escolas.'
-            : 'Gerencie os responsáveis da sua escola.'
-        }
-        action={
-          canManageGuardians ? (
-            <Button onClick={() => navigate('/app/responsaveis/novo')}>+ Novo responsável</Button>
-          ) : undefined
-        }
-      />
-
-      <ListToolbar
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Buscar por nome, e-mail ou telefone..."
-        status={status}
-        onStatusChange={setStatus}
-        showSchoolFilter={isGeneralAdmin}
-        schoolId={schoolId}
-        onSchoolChange={setSchoolId}
-        schoolOptions={schools.map((school) => ({
-          value: school.id,
-          label: school.tradeName || school.name,
-        }))}
-      />
-
-      {filtered.length === 0 ? (
-        <EmptyState
-          title="Nenhum responsável encontrado"
-          description={
-            guardians.length === 0
-              ? 'Cadastre o primeiro responsável para começar.'
-              : 'Ajuste os filtros ou a busca para ver resultados.'
-          }
-          actionLabel={canManageGuardians && guardians.length === 0 ? 'Cadastrar responsável' : undefined}
-          onAction={
-            canManageGuardians && guardians.length === 0
-              ? () => navigate('/app/responsaveis/novo')
-              : undefined
+    <RequirePermission allowed={canViewGuardians(profile)}>
+      <div>
+        <PageHeader
+          title="Responsáveis"
+          description="Famílias vinculadas à sua escola."
+          action={
+            canManageGuardians ? (
+              <Button onClick={() => navigate('/app/responsaveis/novo')}>+ Novo responsável</Button>
+            ) : undefined
           }
         />
-      ) : (
-        <>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeaderCell>Nome</TableHeaderCell>
-                <TableHeaderCell>Vínculo</TableHeaderCell>
-                <TableHeaderCell>Escola</TableHeaderCell>
-                <TableHeaderCell>Status</TableHeaderCell>
-                <TableHeaderCell>Ações</TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageItems.map((guardian) => (
-                <TableRow key={guardian.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{guardian.name}</p>
-                      <p className="text-xs text-ink-muted">{guardian.phonePrimary || guardian.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{GUARDIAN_LINK_LABELS[guardian.linkType]}</TableCell>
-                  <TableCell>{schoolMap[guardian.schoolId] || '—'}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={guardian.status} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        to={`/app/responsaveis/${guardian.id}`}
-                        className="text-sm font-semibold text-brand-700 hover:text-brand-800"
-                      >
-                        Ver
-                      </Link>
-                      {canManageGuardians && (
-                        <>
-                          <Link
-                            to={`/app/responsaveis/${guardian.id}/editar`}
-                            className="text-sm font-semibold text-ink-muted hover:text-ink"
-                          >
-                            Editar
-                          </Link>
-                          <button
-                            type="button"
-                            className="text-sm font-semibold text-ink-muted hover:text-ink"
-                            onClick={() => setPending(guardian)}
-                          >
-                            {guardian.status === 'ativo' ? 'Inativar' : 'Ativar'}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {PaginationBar}
-        </>
-      )}
 
-      <ConfirmDialog
-        open={Boolean(pending)}
-        title={pending?.status === 'ativo' ? 'Inativar responsável?' : 'Ativar responsável?'}
-        description="Confirme a alteração de status deste responsável."
-        confirmLabel="Confirmar"
-        variant={pending?.status === 'ativo' ? 'danger' : 'primary'}
-        loading={saving}
-        onCancel={() => setPending(null)}
-        onConfirm={toggleStatus}
-      />
-    </div>
+        <ListToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Buscar por nome, e-mail ou telefone..."
+          status={status}
+          onStatusChange={setStatus}
+          showSchoolFilter={false}
+        />
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="Nenhum responsável encontrado"
+            description={
+              guardians.length === 0
+                ? 'Cadastre o primeiro responsável para começar.'
+                : 'Ajuste os filtros ou a busca para ver resultados.'
+            }
+            actionLabel={canManageGuardians && guardians.length === 0 ? 'Cadastrar responsável' : undefined}
+            onAction={
+              canManageGuardians && guardians.length === 0
+                ? () => navigate('/app/responsaveis/novo')
+                : undefined
+            }
+          />
+        ) : (
+          <>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Nome</TableHeaderCell>
+                  <TableHeaderCell>Vínculo</TableHeaderCell>
+                  <TableHeaderCell>Escola</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Ações</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pageItems.map((guardian) => (
+                  <TableRow key={guardian.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{guardian.name}</p>
+                        <p className="text-xs text-ink-muted">{guardian.phonePrimary || guardian.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{GUARDIAN_LINK_LABELS[guardian.linkType]}</TableCell>
+                    <TableCell>{schoolMap[guardian.schoolId] || '—'}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={guardian.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          to={`/app/responsaveis/${guardian.id}`}
+                          className="text-sm font-semibold text-brand-700 hover:text-brand-800"
+                        >
+                          Ver
+                        </Link>
+                        {canManageGuardians && (
+                          <>
+                            <Link
+                              to={`/app/responsaveis/${guardian.id}/editar`}
+                              className="text-sm font-semibold text-ink-muted hover:text-ink"
+                            >
+                              Editar
+                            </Link>
+                            <button
+                              type="button"
+                              className="text-sm font-semibold text-ink-muted hover:text-ink"
+                              onClick={() => setPending(guardian)}
+                            >
+                              {guardian.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {PaginationBar}
+          </>
+        )}
+
+        <ConfirmDialog
+          open={Boolean(pending)}
+          title={pending?.status === 'ativo' ? 'Inativar responsável?' : 'Ativar responsável?'}
+          description="Confirme a alteração de status deste responsável."
+          confirmLabel="Confirmar"
+          variant={pending?.status === 'ativo' ? 'danger' : 'primary'}
+          loading={saving}
+          onCancel={() => setPending(null)}
+          onConfirm={toggleStatus}
+        />
+      </div>
+    </RequirePermission>
   )
 }

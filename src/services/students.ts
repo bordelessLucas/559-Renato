@@ -66,7 +66,8 @@ export async function listStudents(): Promise<Student[]> {
 
 export async function listStudentsForProfile(profile: AppUser): Promise<Student[]> {
   if (isGeneralAdmin(profile)) {
-    return listStudents()
+    // LGPD: admin geral não acessa alunos
+    return []
   }
 
   const snap = await getDocs(

@@ -6,6 +6,8 @@ import { MovementNotificationCard } from '../components/notifications/MovementNo
 import { useAuth } from '../contexts/AuthContext'
 import { listStudentsForProfile } from '../services/students'
 import { listMovementsForProfile } from '../services/movements'
+import { listSchoolsForProfile } from '../services/schools'
+import { listUsersForProfile } from '../services/users'
 import { deriveDayPresence } from '../services/presence'
 import { getFaceRecognitionProvider } from '../services/face-recognition'
 import { getNotificationProvider } from '../services/notifications'
@@ -23,6 +25,10 @@ export function DashboardPage() {
     entradas: 0,
     saidas: 0,
   })
+  const [platformCounts, setPlatformCounts] = useState({
+    schools: 0,
+    staffUsers: 0,
+  })
   const [recent, setRecent] = useState<Movement[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -32,20 +38,35 @@ export function DashboardPage() {
       if (!profile) return
       setLoading(true)
       try {
-        const [students, movements] = await Promise.all([
-          listStudentsForProfile(profile),
-          listMovementsForProfile(profile, 40),
-        ])
-        if (cancelled) return
-        const presence = deriveDayPresence({
-          students: students.map((s) => ({ id: s.id, name: s.name })),
-          movements,
-        })
-        setCounts(presence.counts)
-        setRecent(movements.slice(0, 8))
+        if (isGeneralAdmin) {
+          const [schools, staffUsers] = await Promise.all([
+            listSchoolsForProfile(profile),
+            listUsersForProfile(profile),
+          ])
+          if (cancelled) return
+          setPlatformCounts({
+            schools: schools.filter((s) => s.status === 'ativo').length,
+            staffUsers: staffUsers.length,
+          })
+          setCounts({ presentes: 0, semRegistro: 0, entradas: 0, saidas: 0 })
+          setRecent([])
+        } else {
+          const [students, movements] = await Promise.all([
+            listStudentsForProfile(profile),
+            listMovementsForProfile(profile, 40),
+          ])
+          if (cancelled) return
+          const presence = deriveDayPresence({
+            students: students.map((s) => ({ id: s.id, name: s.name })),
+            movements,
+          })
+          setCounts(presence.counts)
+          setRecent(movements.slice(0, 8))
+        }
       } catch {
         if (!cancelled) {
           setCounts({ presentes: 0, semRegistro: 0, entradas: 0, saidas: 0 })
+          setPlatformCounts({ schools: 0, staffUsers: 0 })
           setRecent([])
         }
       } finally {
@@ -56,7 +77,7 @@ export function DashboardPage() {
     return () => {
       cancelled = true
     }
-  }, [profile])
+  }, [profile, isGeneralAdmin])
 
   const copy =
     role === 'operador'
@@ -77,9 +98,11 @@ export function DashboardPage() {
         : isGeneralAdmin
           ? {
               title: 'Painel geral',
-              description: 'Visão da operação em todas as escolas do Olhar+IA.',
-              emptyTitle: 'Nenhuma atividade recente',
-              emptyDescription: 'Quando houver cadastros e movimentações, o resumo aparece aqui.',
+              description:
+                'Visão da plataforma por escolas e equipe. Dados de alunos e famílias ficam só com cada escola (LGPD).',
+              emptyTitle: 'Sem atividade de portaria aqui',
+              emptyDescription:
+                'Movimentações com nomes de crianças aparecem apenas nos painéis das escolas.',
             }
           : {
               title: 'Painel',
@@ -88,15 +111,22 @@ export function DashboardPage() {
               emptyDescription: 'O resumo operacional aparece aqui.',
             }
 
-  const metrics = [
-    { label: 'Entradas hoje', value: counts.entradas },
-    { label: 'Saídas hoje', value: counts.saidas },
-    { label: 'Presentes', value: counts.presentes },
-    {
-      label: role === 'operador' ? 'Sem registro' : 'Alertas',
-      value: role === 'operador' ? counts.semRegistro : '—',
-    },
-  ]
+  const metrics = isGeneralAdmin
+    ? [
+        { label: 'Escolas ativas', value: platformCounts.schools },
+        { label: 'Usuários de equipe', value: platformCounts.staffUsers },
+        { label: 'Facial', value: faceProvider.ready ? 'Pronto' : '—' },
+        { label: 'Avisos', value: notificationProvider.ready ? 'Mock' : '—' },
+      ]
+    : [
+        { label: 'Entradas hoje', value: counts.entradas },
+        { label: 'Saídas hoje', value: counts.saidas },
+        { label: 'Presentes', value: counts.presentes },
+        {
+          label: role === 'operador' ? 'Sem registro' : 'Alertas',
+          value: role === 'operador' ? counts.semRegistro : '—',
+        },
+      ]
 
   return (
     <div>
@@ -125,81 +155,93 @@ export function DashboardPage() {
               <p className="text-sm font-medium text-ink-muted">{item.label}</p>
               <p className="mt-2 text-2xl font-bold text-ink">{loading ? '…' : item.value}</p>
               <p className="mt-1 text-xs text-ink-subtle">
-                {item.label === 'Alertas' ? 'Sprint 8' : 'Derivado das movimentações do dia'}
+                {isGeneralAdmin
+                  ? 'Sem dados pessoais de crianças ou famílias'
+                  : item.label === 'Alertas'
+                    ? 'Sprint 8'
+                    : 'Derivado das movimentações do dia'}
               </p>
             </CardBody>
           </Card>
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-ink">Prévia das notificações</h2>
-            <p className="mt-1 text-xs text-ink-muted">
-              Layout do guia Olhar+IA — envio real após definição do canal.
-            </p>
-          </CardHeader>
-          <CardBody className="grid gap-4 sm:grid-cols-2">
-            <MovementNotificationCard
-              studentName="Ana Silva"
-              schoolName={schoolName}
-              type="entrada"
-              timeLabel="07:42"
-              gender="feminino"
-            />
-            <MovementNotificationCard
-              studentName="Pedro Souza"
-              schoolName={schoolName}
-              type="saida"
-              timeLabel="12:15"
-              gender="masculino"
-            />
-          </CardBody>
-        </Card>
+      {!isGeneralAdmin && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <h2 className="text-sm font-semibold text-ink">Prévia das notificações</h2>
+              <p className="mt-1 text-xs text-ink-muted">
+                Layout do guia Olhar+IA — envio real após definição do canal.
+              </p>
+            </CardHeader>
+            <CardBody className="grid gap-4 sm:grid-cols-2">
+              <MovementNotificationCard
+                studentName="Ana Silva"
+                schoolName={schoolName}
+                type="entrada"
+                timeLabel="07:42"
+                gender="feminino"
+              />
+              <MovementNotificationCard
+                studentName="Pedro Souza"
+                schoolName={schoolName}
+                type="saida"
+                timeLabel="12:15"
+                gender="masculino"
+              />
+            </CardBody>
+          </Card>
 
-        <div>
-          {recent.length === 0 ? (
-            <EmptyState title={copy.emptyTitle} description={copy.emptyDescription} />
-          ) : (
-            <Card>
-              <CardHeader>
-                <h2 className="text-sm font-semibold text-ink">Movimentações recentes</h2>
-              </CardHeader>
-              <CardBody className="space-y-2">
-                {recent.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium text-ink">{m.studentName}</p>
-                      <p className="text-xs text-ink-muted">
-                        {m.type === 'entrada' ? 'Entrada' : 'Saída'}
-                        {m.occurredAt
-                          ? ` · ${m.occurredAt.toDate().toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}`
-                          : ''}
-                      </p>
-                    </div>
-                    <span
-                      className={
-                        m.type === 'entrada'
-                          ? 'text-xs font-semibold text-success-700'
-                          : 'text-xs font-semibold text-accent-600'
-                      }
+          <div>
+            {recent.length === 0 ? (
+              <EmptyState title={copy.emptyTitle} description={copy.emptyDescription} />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <h2 className="text-sm font-semibold text-ink">Movimentações recentes</h2>
+                </CardHeader>
+                <CardBody className="space-y-2">
+                  {recent.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm"
                     >
-                      {m.type === 'entrada' ? 'Entrada' : 'Saída'}
-                    </span>
-                  </div>
-                ))}
-              </CardBody>
-            </Card>
-          )}
+                      <div>
+                        <p className="font-medium text-ink">{m.studentName}</p>
+                        <p className="text-xs text-ink-muted">
+                          {m.type === 'entrada' ? 'Entrada' : 'Saída'}
+                          {m.occurredAt
+                            ? ` · ${m.occurredAt.toDate().toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}`
+                            : ''}
+                        </p>
+                      </div>
+                      <span
+                        className={
+                          m.type === 'entrada'
+                            ? 'text-xs font-semibold text-success-700'
+                            : 'text-xs font-semibold text-accent-600'
+                        }
+                      >
+                        {m.type === 'entrada' ? 'Entrada' : 'Saída'}
+                      </span>
+                    </div>
+                  ))}
+                </CardBody>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {isGeneralAdmin && (
+        <div className="mt-6">
+          <EmptyState title={copy.emptyTitle} description={copy.emptyDescription} />
+        </div>
+      )}
     </div>
   )
 }

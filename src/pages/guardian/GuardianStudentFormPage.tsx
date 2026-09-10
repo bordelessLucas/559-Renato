@@ -30,7 +30,7 @@ import type { Student } from '../../types/student'
 import { STUDENT_GENDER_LABELS, STUDENT_SHIFT_LABELS, type StudentGender, type StudentShift } from '../../types/common'
 
 const SHIFT_OPTIONS = [
-  { value: '', label: 'Não informado' },
+  { value: '', label: 'Selecione o turno…' },
   ...(Object.keys(STUDENT_SHIFT_LABELS) as StudentShift[]).map((key) => ({
     value: key,
     label: STUDENT_SHIFT_LABELS[key],
@@ -55,7 +55,6 @@ export function GuardianStudentFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [guardianId, setGuardianId] = useState('')
   const [existing, setExisting] = useState<Student | null>(null)
-  const [showExtras, setShowExtras] = useState(false)
 
   const [name, setName] = useState('')
   const [gender, setGender] = useState<StudentGender>('masculino')
@@ -95,9 +94,6 @@ export function GuardianStudentFormPage() {
           setShift(student.shift)
           setNotes(student.notes)
           setPhotoPreview('')
-          if (student.birthDate || student.enrollmentCode || student.className || student.shift || student.notes) {
-            setShowExtras(true)
-          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar formulário.')
@@ -129,13 +125,18 @@ export function GuardianStudentFormPage() {
 
   const validate = () => {
     const next: Record<string, string> = {}
+    if (!enrollmentCode.trim()) next.enrollmentCode = 'Informe a matrícula.'
     if (!name.trim()) next.name = 'Informe o nome da criança.'
-    if (birthDate) {
+    if (!birthDate) {
+      next.birthDate = 'Informe a data de nascimento.'
+    } else {
       const parsed = new Date(`${birthDate}T00:00:00`)
       if (Number.isNaN(parsed.getTime()) || parsed > new Date()) {
         next.birthDate = 'Informe uma data de nascimento válida.'
       }
     }
+    if (!className.trim()) next.className = 'Informe a turma.'
+    if (!shift) next.shift = 'Selecione o turno.'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -276,7 +277,7 @@ export function GuardianStudentFormPage() {
         <div>
           <PageHeader
             title={isEdit ? 'Editar dependente' : 'Cadastrar dependente'}
-            description={`Escola: ${schoolName}. Informe o nome da criança — demais dados são opcionais.`}
+            description={`Escola: ${schoolName}. Matrícula, nome, nascimento, turma e turno são obrigatórios para localizar a criança no sistema.`}
             action={
               <Link to={isEdit && id ? `/app/responsavel/alunos/${id}` : '/app/responsavel'}>
                 <Button variant="outline">Cancelar</Button>
@@ -287,77 +288,74 @@ export function GuardianStudentFormPage() {
           <form className="space-y-4" onSubmit={handleSubmit} noValidate>
             <Card>
               <CardHeader>
-                <h2 className="text-sm font-semibold text-ink">Quem é a criança?</h2>
+                <h2 className="text-sm font-semibold text-ink">Dados do dependente</h2>
                 <p className="mt-1 text-sm text-ink-muted">
-                  Esse nome aparece nas futuras notificações de entrada e saída.
+                  Esses dados aparecem nas notificações e nas buscas da escola.
                 </p>
               </CardHeader>
-              <CardBody className="space-y-4">
-                <Input
-                  label="Nome completo"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  error={errors.name}
-                  disabled={submitting}
-                  autoFocus
-                  placeholder="Ex.: Ana Silva"
-                />
-                <Select
-                  label="Menino ou menina"
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value as StudentGender)}
-                  disabled={submitting}
-                  options={GENDER_OPTIONS}
-                />
-                <p className="text-xs text-ink-muted">
-                  Sem foto, usamos um ícone de perfil (boneco) correspondente nos avisos.
-                </p>
-                <button
-                  type="button"
-                  className="text-sm font-semibold text-brand-700 hover:text-brand-800"
-                  onClick={() => setShowExtras((value) => !value)}
-                >
-                  {showExtras ? 'Ocultar dados opcionais' : 'Incluir turma, turno e outros dados (opcional)'}
-                </button>
-                {showExtras && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Input
-                      label="Data de nascimento"
-                      type="date"
-                      value={birthDate}
-                      onChange={(e) => setBirthDate(e.target.value)}
-                      error={errors.birthDate}
+              <CardBody>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="Matrícula *"
+                    value={enrollmentCode}
+                    onChange={(e) => setEnrollmentCode(e.target.value)}
+                    error={errors.enrollmentCode}
+                    disabled={submitting}
+                    placeholder="Ex.: 2026-0142"
+                  />
+                  <Input
+                    label="Nome completo *"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    error={errors.name}
+                    disabled={submitting}
+                    autoFocus
+                    placeholder="Ex.: Ana Silva"
+                  />
+                  <Input
+                    label="Data de nascimento *"
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    error={errors.birthDate}
+                    disabled={submitting}
+                  />
+                  <Select
+                    label="Menino ou menina"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as StudentGender)}
+                    disabled={submitting}
+                    options={GENDER_OPTIONS}
+                  />
+                  <Input
+                    label="Turma *"
+                    value={className}
+                    onChange={(e) => setClassName(e.target.value)}
+                    error={errors.className}
+                    disabled={submitting}
+                    placeholder="Ex.: 3º Ano A"
+                  />
+                  <Select
+                    label="Turno *"
+                    value={shift}
+                    onChange={(e) => setShift(e.target.value as StudentShift | '')}
+                    error={errors.shift}
+                    disabled={submitting}
+                    options={SHIFT_OPTIONS}
+                  />
+                  <div className="sm:col-span-2">
+                    <Textarea
+                      label="Observações"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
                       disabled={submitting}
+                      hint="Opcional"
                     />
-                    <Input
-                      label="Matrícula"
-                      value={enrollmentCode}
-                      onChange={(e) => setEnrollmentCode(e.target.value)}
-                      disabled={submitting}
-                    />
-                    <Input
-                      label="Turma"
-                      value={className}
-                      onChange={(e) => setClassName(e.target.value)}
-                      disabled={submitting}
-                    />
-                    <Select
-                      label="Turno"
-                      value={shift}
-                      onChange={(e) => setShift(e.target.value as StudentShift | '')}
-                      disabled={submitting}
-                      options={SHIFT_OPTIONS}
-                    />
-                    <div className="sm:col-span-2">
-                      <Textarea
-                        label="Observações"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        disabled={submitting}
-                      />
-                    </div>
                   </div>
-                )}
+                </div>
+                <p className="mt-3 text-xs text-ink-muted">
+                  Sem foto, usamos um ícone de perfil correspondente nos avisos.
+                </p>
               </CardBody>
             </Card>
 
