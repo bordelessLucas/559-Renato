@@ -1,0 +1,38 @@
+---
+description: Comandos /rel e /rel2 — relatório do que foi implementado no chat
+alwaysApply: true
+---
+
+# Relatórios `/rel` e `/rel2`
+
+## Escopo (obrigatório)
+
+O relatório cobre **apenas o que foi implementado neste chat / nesta conversa** (trabalho do dia pedido nesta sessão).
+
+**Não incluir:**
+- Commits antigos de outras sessões
+- Features entregues em chats anteriores
+- Histórico genérico do repositório
+
+**Incluir:**
+- Features, UI, serviços, regras e correções feitas **nesta** conversa
+- Arquivos principais tocados
+- Decisão de produto / comportamento relevante
+
+## `/rel`
+
+1. Resumir o que foi implementado neste chat.
+2. **Não** listar deploys, URLs de produção, nem histórico de publish (a menos que o usuário peça).
+3. Formato curto, em português, com bullets claros.
+
+## `/rel2`
+
+Igual ao `/rel`, **mais**:
+- Deploys feitos **nesta** conversa (Hosting/Firebase ou o que tiver sido publicado aqui)
+- URL(s) de produção / preview usadas
+- Commit(s) e push feitos **nesta** conversa (hash curto + mensagem), se houver
+- Se não houve deploy/commit nesta conversa, dizer isso explicitamente
+
+## Após criar ou atualizar as regras
+
+Se o usuário pedir para executar `/rel` ou `/rel2` no mesmo turno, gerar o relatório na hora.
