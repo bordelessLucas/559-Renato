@@ -65,6 +65,53 @@ export async function listMovementsForProfile(profile: AppUser, max = 100): Prom
   return listMovementsForSchool(profile.schoolId, max)
 }
 
+function startOfLocalDay(date: Date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+/** Movimentações no intervalo [fromDay, toDay] (dias locais, inclusive). */
+export async function listMovementsForProfileInRange(
+  profile: AppUser,
+  fromDay: Date,
+  toDay: Date,
+): Promise<Movement[]> {
+  const start = Timestamp.fromDate(startOfLocalDay(fromDay))
+  const endExclusive = startOfLocalDay(toDay)
+  endExclusive.setDate(endExclusive.getDate() + 1)
+  const end = Timestamp.fromDate(endExclusive)
+
+  if (isGeneralAdmin(profile)) {
+    const snap = await getDocs(
+      query(
+        movementsCollection,
+        where('occurredAt', '>=', start),
+        where('occurredAt', '<', end),
+        orderBy('occurredAt', 'desc'),
+      ),
+    )
+    return snap.docs.map((item) => mapMovement(item.id, item.data()))
+  }
+
+  if (!profile.schoolId) return []
+
+  const snap = await getDocs(
+    query(
+      movementsCollection,
+      where('schoolId', '==', profile.schoolId),
+      where('occurredAt', '>=', start),
+      where('occurredAt', '<', end),
+      orderBy('occurredAt', 'desc'),
+    ),
+  )
+  return snap.docs.map((item) => mapMovement(item.id, item.data()))
+}
+
+export async function listMovementsForProfileOnDay(profile: AppUser, day: Date): Promise<Movement[]> {
+  return listMovementsForProfileInRange(profile, day, day)
+}
+
 export async function findRecentDuplicate(params: {
   schoolId: string
   studentId: string

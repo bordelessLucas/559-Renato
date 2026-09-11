@@ -5,15 +5,40 @@ export type PresenceStatus = 'presente' | 'sem_registro' | 'saiu'
 export interface DayPresenceRow {
   studentId: string
   studentName: string
+  enrollmentCode: string
   status: PresenceStatus
   lastEntryAt: Date | null
   lastExitAt: Date | null
+  /** Dia local da presença (meia-noite). */
+  day: Date
 }
 
-function startOfLocalDay(date = new Date()) {
+export function startOfLocalDay(date = new Date()) {
   const d = new Date(date)
   d.setHours(0, 0, 0, 0)
   return d
+}
+
+export function toDateInputValue(date: Date) {
+  const d = startOfLocalDay(date)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function parseDateInputValue(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number)
+  if (!y || !m || !d) return startOfLocalDay()
+  return startOfLocalDay(new Date(y, m - 1, d))
+}
+
+export function formatPresenceDay(date: Date) {
+  return startOfLocalDay(date).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
 }
 
 function movementDate(m: Movement): Date | null {
@@ -21,14 +46,20 @@ function movementDate(m: Movement): Date | null {
   return m.occurredAt.toDate()
 }
 
+function dayKey(date: Date) {
+  return toDateInputValue(date)
+}
+
 /**
- * Deriva presença do dia a partir das movimentações (Sprint 7).
- * Sem movimentações, todos ficam como "sem_registro" quando a lista de alunos é fornecida.
+ * Deriva presença de um dia a partir das movimentações.
+ * Por padrão inclui alunos sem registro; use `onlyWithEntry` para restringir a quem já entrou.
  */
 export function deriveDayPresence(params: {
-  students: Array<{ id: string; name: string }>
+  students: Array<{ id: string; name: string; enrollmentCode?: string }>
   movements: Movement[]
   day?: Date
+  /** Se true, omite alunos sem entrada no dia. */
+  onlyWithEntry?: boolean
 }): {
   rows: DayPresenceRow[]
   counts: { presentes: number; semRegistro: number; saidas: number; entradas: number }
@@ -42,10 +73,18 @@ export function deriveDayPresence(params: {
     return at && at >= dayStart && at < dayEnd
   })
 
-  const byStudent = new Map<string, { entries: Date[]; exits: Date[]; name: string }>()
+  const byStudent = new Map<
+    string,
+    { entries: Date[]; exits: Date[]; name: string; enrollmentCode: string }
+  >()
 
   for (const student of params.students) {
-    byStudent.set(student.id, { entries: [], exits: [], name: student.name })
+    byStudent.set(student.id, {
+      entries: [],
+      exits: [],
+      name: student.name,
+      enrollmentCode: student.enrollmentCode || '',
+    })
   }
 
   for (const m of dayMovements) {
@@ -55,13 +94,14 @@ export function deriveDayPresence(params: {
       entries: [],
       exits: [],
       name: m.studentName,
+      enrollmentCode: '',
     }
     if (m.type === 'entrada') bucket.entries.push(at)
     else bucket.exits.push(at)
     byStudent.set(m.studentId, bucket)
   }
 
-  const rows: DayPresenceRow[] = [...byStudent.entries()].map(([studentId, data]) => {
+  let rows: DayPresenceRow[] = [...byStudent.entries()].map(([studentId, data]) => {
     const lastEntryAt = data.entries.sort((a, b) => b.getTime() - a.getTime())[0] ?? null
     const lastExitAt = data.exits.sort((a, b) => b.getTime() - a.getTime())[0] ?? null
     let status: PresenceStatus = 'sem_registro'
@@ -71,11 +111,19 @@ export function deriveDayPresence(params: {
     return {
       studentId,
       studentName: data.name,
+      enrollmentCode: data.enrollmentCode,
       status,
       lastEntryAt,
       lastExitAt,
+      day: dayStart,
     }
   })
+
+  if (params.onlyWithEntry) {
+    rows = rows.filter((r) => r.lastEntryAt !== null)
+  }
+
+  rows.sort((a, b) => a.studentName.localeCompare(b.studentName, 'pt-BR'))
 
   const entradas = dayMovements.filter((m) => m.type === 'entrada').length
   const saidas = dayMovements.filter((m) => m.type === 'saida').length
@@ -87,6 +135,91 @@ export function deriveDayPresence(params: {
       semRegistro: rows.filter((r) => r.status === 'sem_registro').length,
       saidas,
       entradas,
+    },
+  }
+}
+
+/**
+ * Presenças por aluno/dia em um intervalo (apenas quem teve entrada).
+ */
+export function derivePresenceRange(params: {
+  students: Array<{ id: string; name: string; enrollmentCode?: string }>
+  movements: Movement[]
+  from: Date
+  to: Date
+}): {
+  rows: DayPresenceRow[]
+  counts: { presentes: number; semRegistro: number; saidas: number; entradas: number }
+} {
+  const from = startOfLocalDay(params.from)
+  const to = startOfLocalDay(params.to)
+  const studentMap = new Map(params.students.map((s) => [s.id, s]))
+
+  const byDayStudent = new Map<
+    string,
+    { day: Date; studentId: string; entries: Date[]; exits: Date[]; name: string; enrollmentCode: string }
+  >()
+
+  for (const m of params.movements) {
+    const at = movementDate(m)
+    if (!at) continue
+    const day = startOfLocalDay(at)
+    if (day < from || day > to) continue
+
+    const key = `${dayKey(day)}:${m.studentId}`
+    const student = studentMap.get(m.studentId)
+    const bucket = byDayStudent.get(key) ?? {
+      day,
+      studentId: m.studentId,
+      entries: [],
+      exits: [],
+      name: student?.name || m.studentName,
+      enrollmentCode: student?.enrollmentCode || '',
+    }
+    if (m.type === 'entrada') bucket.entries.push(at)
+    else bucket.exits.push(at)
+    byDayStudent.set(key, bucket)
+  }
+
+  const rows: DayPresenceRow[] = [...byDayStudent.values()]
+    .map((data) => {
+      const lastEntryAt = data.entries.sort((a, b) => b.getTime() - a.getTime())[0] ?? null
+      const lastExitAt = data.exits.sort((a, b) => b.getTime() - a.getTime())[0] ?? null
+      let status: PresenceStatus = 'sem_registro'
+      if (lastEntryAt && (!lastExitAt || lastEntryAt > lastExitAt)) status = 'presente'
+      else if (lastExitAt) status = 'saiu'
+
+      return {
+        studentId: data.studentId,
+        studentName: data.name,
+        enrollmentCode: data.enrollmentCode,
+        status,
+        lastEntryAt,
+        lastExitAt,
+        day: data.day,
+      }
+    })
+    .filter((r) => r.lastEntryAt !== null)
+    .sort((a, b) => {
+      const byDay = b.day.getTime() - a.day.getTime()
+      if (byDay !== 0) return byDay
+      return a.studentName.localeCompare(b.studentName, 'pt-BR')
+    })
+
+  const inRange = params.movements.filter((m) => {
+    const at = movementDate(m)
+    if (!at) return false
+    const day = startOfLocalDay(at)
+    return day >= from && day <= to
+  })
+
+  return {
+    rows,
+    counts: {
+      presentes: rows.filter((r) => r.status === 'presente').length,
+      semRegistro: 0,
+      saidas: inRange.filter((m) => m.type === 'saida').length,
+      entradas: inRange.filter((m) => m.type === 'entrada').length,
     },
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { EmptyState } from '../../components/feedback/EmptyState'
 import { ErrorState } from '../../components/feedback/ErrorState'
@@ -10,8 +10,12 @@ import {
   Card,
   CardBody,
   ConfirmDialog,
+  Modal,
   PageSkeleton,
   Table,
+  TableActionButton,
+  TableActionLink,
+  TableActions,
   TableBody,
   TableCell,
   TableHead,
@@ -28,10 +32,7 @@ import type { AppUser } from '../../types/user'
 import type { School } from '../../types/school'
 import type { EntityStatus } from '../../types/common'
 import { USER_ROLE_LABELS } from '../../types/common'
-import {
-  canViewUserRecord,
-  isSystemStaffRole,
-} from '../../lib/permissions'
+import { canViewUserRecord, isSystemStaffRole } from '../../lib/permissions'
 
 type SchoolBucket = {
   id: string
@@ -45,12 +46,14 @@ function UsersTable({
   canManageUsers,
   showSchoolColumn,
   onToggle,
+  onPreview,
 }: {
   users: AppUser[]
   schoolMap: Record<string, string>
   canManageUsers: boolean
   showSchoolColumn: boolean
   onToggle: (user: AppUser) => void
+  onPreview: (user: AppUser) => void
 }) {
   return (
     <Table>
@@ -65,16 +68,27 @@ function UsersTable({
       </TableHead>
       <TableBody>
         {users.map((user) => (
-          <TableRow key={user.id}>
+          <TableRow
+            key={user.id}
+            className="cursor-pointer"
+            tabIndex={0}
+            role="button"
+            aria-label={`Abrir resumo de ${user.name}`}
+            onClick={() => onPreview(user)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onPreview(user)
+              }
+            }}
+          >
             <TableCell>
               <div>
                 <p className="font-medium">{user.name}</p>
                 <p className="text-xs text-ink-muted">{user.email}</p>
               </div>
             </TableCell>
-            {showSchoolColumn && (
-              <TableCell>{schoolMap[user.schoolId] || '—'}</TableCell>
-            )}
+            {showSchoolColumn && <TableCell>{schoolMap[user.schoolId] || '—'}</TableCell>}
             <TableCell>
               <Badge
                 variant={
@@ -88,31 +102,16 @@ function UsersTable({
               <StatusBadge status={user.status} />
             </TableCell>
             <TableCell>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  to={`/app/usuarios/${user.id}`}
-                  className="text-sm font-semibold text-brand-700 hover:text-brand-800"
-                >
-                  Ver
-                </Link>
-                {canManageUsers && (
-                  <>
-                    <Link
-                      to={`/app/usuarios/${user.id}/editar`}
-                      className="text-sm font-semibold text-ink-muted hover:text-ink"
-                    >
-                      Editar
-                    </Link>
-                    <button
-                      type="button"
-                      className="text-sm font-semibold text-ink-muted hover:text-ink"
-                      onClick={() => onToggle(user)}
-                    >
-                      {user.status === 'ativo' ? 'Inativar' : 'Ativar'}
-                    </button>
-                  </>
-                )}
-              </div>
+              {canManageUsers ? (
+                <TableActions>
+                  <TableActionLink to={`/app/usuarios/${user.id}/editar`}>Editar</TableActionLink>
+                  <TableActionButton onClick={() => onToggle(user)}>
+                    {user.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                  </TableActionButton>
+                </TableActions>
+              ) : (
+                <span className="text-xs text-ink-muted">—</span>
+              )}
             </TableCell>
           </TableRow>
         ))}
@@ -133,6 +132,7 @@ export function UsersPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<EntityStatus | 'todos'>('todos')
   const [pending, setPending] = useState<AppUser | null>(null)
+  const [preview, setPreview] = useState<AppUser | null>(null)
   const [saving, setSaving] = useState(false)
   const [openBuckets, setOpenBuckets] = useState<Record<string, boolean>>({})
 
@@ -202,10 +202,7 @@ export function UsersPage() {
     const schoolBuckets: SchoolBucket[] = [...bySchool.entries()]
       .map(([id, schoolUsers]) => ({
         id,
-        label:
-          id === 'sem-escola'
-            ? 'Sem escola vinculada'
-            : schoolMap[id] || 'Escola',
+        label: id === 'sem-escola' ? 'Sem escola vinculada' : schoolMap[id] || 'Escola',
         users: schoolUsers.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
       }))
       .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
@@ -231,9 +228,12 @@ export function UsersPage() {
     })
   }, [buckets, isGeneralAdmin])
 
-  const { pageItems, PaginationBar } = useClientPagination(
-    isGeneralAdmin ? [] : visibleUsers,
-  )
+  const { pageItems, PaginationBar } = useClientPagination(isGeneralAdmin ? [] : visibleUsers)
+
+  const openDetail = (id: string) => {
+    setPreview(null)
+    navigate(`/app/usuarios/${id}`)
+  }
 
   const toggleStatus = async () => {
     if (!pending || !canManageUsers) return
@@ -267,8 +267,8 @@ export function UsersPage() {
         title="Usuários"
         description={
           isGeneralAdmin
-            ? 'Equipe do sistema por escola. Contas de responsáveis e dados de crianças não aparecem aqui (LGPD).'
-            : 'Operadores, admins e responsáveis da sua escola. Alunos ficam na área Alunos.'
+            ? 'Equipe do sistema por escola. Clique na linha para ver o resumo.'
+            : 'Operadores, admins e responsáveis da sua escola. Clique na linha para ver o resumo.'
         }
         action={
           canManageUsers ? (
@@ -292,15 +292,13 @@ export function UsersPage() {
           description={
             users.length === 0
               ? isGeneralAdmin
-                ? 'Cadastre administradores de escola ou operadores.'
+                ? 'Cadastre admins de escola ou operadores.'
                 : 'Cadastre operadores ou responsáveis da sua escola.'
               : 'Ajuste os filtros ou a busca para ver resultados.'
           }
           actionLabel={canManageUsers && users.length === 0 ? 'Cadastrar usuário' : undefined}
           onAction={
-            canManageUsers && users.length === 0
-              ? () => navigate('/app/usuarios/novo')
-              : undefined
+            canManageUsers && users.length === 0 ? () => navigate('/app/usuarios/novo') : undefined
           }
         />
       ) : isGeneralAdmin ? (
@@ -308,9 +306,7 @@ export function UsersPage() {
           <p className="text-sm text-ink-muted">
             {buckets.length} pacote{buckets.length === 1 ? '' : 's'} · {visibleUsers.length}{' '}
             usuário{visibleUsers.length === 1 ? '' : 's'} de equipe
-            {visibleUsers.some((u) => isSystemStaffRole(u.role))
-              ? ' (sem responsáveis)'
-              : ''}
+            {visibleUsers.some((u) => isSystemStaffRole(u.role)) ? ' (sem responsáveis)' : ''}
           </p>
           {buckets.map((bucket) => {
             const open = Boolean(openBuckets[bucket.id])
@@ -334,10 +330,7 @@ export function UsersPage() {
                     </p>
                   </div>
                   <span
-                    className={cn(
-                      'text-ink-muted transition-transform',
-                      open && 'rotate-180',
-                    )}
+                    className={cn('text-ink-muted transition-transform', open && 'rotate-180')}
                     aria-hidden
                   >
                     ▾
@@ -354,6 +347,7 @@ export function UsersPage() {
                         canManageUsers={canManageUsers}
                         showSchoolColumn={false}
                         onToggle={setPending}
+                        onPreview={setPreview}
                       />
                     )}
                   </CardBody>
@@ -370,10 +364,73 @@ export function UsersPage() {
             canManageUsers={canManageUsers}
             showSchoolColumn={false}
             onToggle={setPending}
+            onPreview={setPreview}
           />
           {PaginationBar}
         </>
       )}
+
+      <Modal
+        open={Boolean(preview)}
+        onClose={() => setPreview(null)}
+        title={preview?.name || 'Usuário'}
+        description="Resumo do usuário. Use Ver para abrir a página completa."
+        size="lg"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setPreview(null)}>
+              Fechar
+            </Button>
+            {canManageUsers && preview && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const id = preview.id
+                  setPreview(null)
+                  navigate(`/app/usuarios/${id}/editar`)
+                }}
+              >
+                Editar
+              </Button>
+            )}
+            {preview && <Button onClick={() => openDetail(preview.id)}>Ver</Button>}
+          </>
+        }
+      >
+        {preview && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={preview.status} />
+              <Badge
+                variant={
+                  preview.role === 'operador' || preview.role === 'responsavel'
+                    ? 'neutral'
+                    : 'brand'
+                }
+              >
+                {USER_ROLE_LABELS[preview.role]}
+              </Badge>
+            </div>
+            <dl className="grid gap-3 sm:grid-cols-2">
+              {[
+                { label: 'E-mail', value: preview.email || '—' },
+                { label: 'Telefone', value: preview.phone || '—' },
+                {
+                  label: 'Escola',
+                  value: schoolMap[preview.schoolId] || '—',
+                },
+              ].map((field) => (
+                <div key={field.label}>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                    {field.label}
+                  </dt>
+                  <dd className="mt-1 text-sm text-ink">{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={Boolean(pending)}

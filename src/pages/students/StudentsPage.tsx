@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { EmptyState } from '../../components/feedback/EmptyState'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { ListToolbar, useClientPagination, useFilteredSearch } from '../../components/forms/ListToolbar'
 import {
   Button,
+  Modal,
   PageSkeleton,
   Table,
+  TableActionButton,
+  TableActionLink,
+  TableActions,
   TableBody,
   TableCell,
   TableHead,
@@ -44,6 +48,7 @@ export function StudentsPage() {
   const [status, setStatus] = useState<EntityStatus | 'todos'>('todos')
   const [shift, setShift] = useState<StudentShift | 'todos'>('todos')
   const [pending, setPending] = useState<Student | null>(null)
+  const [preview, setPreview] = useState<Student | null>(null)
   const [saving, setSaving] = useState(false)
 
   const debouncedSearch = useFilteredSearch(search)
@@ -96,6 +101,11 @@ export function StudentsPage() {
 
   const { pageItems, PaginationBar } = useClientPagination(filtered)
 
+  const openDetail = (id: string) => {
+    setPreview(null)
+    navigate(`/app/alunos/${id}`)
+  }
+
   const toggleStatus = async () => {
     if (!pending || !canManageStudents) return
     setSaving(true)
@@ -121,149 +131,224 @@ export function StudentsPage() {
 
   return (
     <RequirePermission allowed={canViewStudents(profile)}>
-    <div>
-      <PageHeader
-        title="Alunos"
-        description={
-          canManageStudents
-            ? 'Cadastre, consulte e atualize alunos da sua escola.'
-            : 'Consulte os alunos da sua escola para identificar quem está na entrada e na saída.'
-        }
-        action={
-          canManageStudents ? (
-            <Button onClick={() => navigate('/app/alunos/novo')}>+ Novo aluno</Button>
-          ) : undefined
-        }
-      />
-
-      <ListToolbar
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Buscar por nome, matrícula, turma ou responsável..."
-        status={status}
-        onStatusChange={setStatus}
-        showSchoolFilter={false}
-        extra={
-          <div className="w-full sm:w-44">
-            <Select
-              label="Turno"
-              value={shift}
-              onChange={(event) => setShift(event.target.value as StudentShift | 'todos')}
-              options={[
-                { value: 'todos', label: 'Todos' },
-                ...Object.entries(STUDENT_SHIFT_LABELS).map(([value, label]) => ({ value, label })),
-              ]}
-            />
-          </div>
-        }
-      />
-
-      {filtered.length === 0 ? (
-        <EmptyState
-          title="Nenhum aluno encontrado"
+      <div>
+        <PageHeader
+          title="Alunos"
           description={
-            students.length === 0
-              ? canManageStudents
-                ? 'Cadastre o primeiro aluno para começar.'
-                : 'Ainda não há alunos cadastrados nesta escola.'
-              : 'Ajuste os filtros ou a busca para ver resultados.'
+            canManageStudents
+              ? 'Cadastre e gerencie alunos da escola. Clique na linha para ver o resumo.'
+              : 'Consulte os alunos da sua escola. Clique na linha para ver o resumo.'
           }
-          actionLabel={canManageStudents && students.length === 0 ? 'Cadastrar aluno' : undefined}
-          onAction={
-            canManageStudents && students.length === 0
-              ? () => navigate('/app/alunos/novo')
-              : undefined
+          action={
+            canManageStudents ? (
+              <Button onClick={() => navigate('/app/alunos/novo')}>+ Novo aluno</Button>
+            ) : undefined
           }
         />
-      ) : (
-        <>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeaderCell>Aluno</TableHeaderCell>
-                <TableHeaderCell>Matrícula</TableHeaderCell>
-                <TableHeaderCell>Turma</TableHeaderCell>
-                <TableHeaderCell>Turno</TableHeaderCell>
-                <TableHeaderCell>Escola</TableHeaderCell>
-                <TableHeaderCell>Responsáveis</TableHeaderCell>
-                <TableHeaderCell>Status</TableHeaderCell>
-                <TableHeaderCell>Ações</TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageItems.map((student) => (
-                <TableRow key={student.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <StudentAvatar
-                        name={student.name}
-                        gender={student.gender}
-                        photoUrl={student.photoUrl || undefined}
-                        size="sm"
-                      />
-                      <p className="font-medium">{student.name}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{student.enrollmentCode || '—'}</TableCell>
-                  <TableCell>{student.className || '—'}</TableCell>
-                  <TableCell>{student.shift ? STUDENT_SHIFT_LABELS[student.shift] : '—'}</TableCell>
-                  <TableCell>{schoolMap[student.schoolId] || '—'}</TableCell>
-                  <TableCell>
-                    {student.guardianIds.length === 0
-                      ? '—'
-                      : student.guardianIds
-                          .map((id) => guardianMap[id] || 'Responsável')
-                          .join(', ')}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={student.status} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        to={`/app/alunos/${student.id}`}
-                        className="text-sm font-semibold text-brand-700 hover:text-brand-800"
-                      >
-                        Ver
-                      </Link>
-                      {canManageStudents && (
-                        <>
-                          <Link
-                            to={`/app/alunos/${student.id}/editar`}
-                            className="text-sm font-semibold text-ink-muted hover:text-ink"
-                          >
-                            Editar
-                          </Link>
-                          <button
-                            type="button"
-                            className="text-sm font-semibold text-ink-muted hover:text-ink"
-                            onClick={() => setPending(student)}
-                          >
-                            {student.status === 'ativo' ? 'Inativar' : 'Ativar'}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {PaginationBar}
-        </>
-      )}
 
-      <ConfirmDialog
-        open={Boolean(pending)}
-        title={pending?.status === 'ativo' ? 'Inativar aluno?' : 'Ativar aluno?'}
-        description="Confirme a alteração de status deste aluno."
-        confirmLabel="Confirmar"
-        variant={pending?.status === 'ativo' ? 'danger' : 'primary'}
-        loading={saving}
-        onCancel={() => setPending(null)}
-        onConfirm={toggleStatus}
-      />
-    </div>
+        <ListToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Buscar por nome, matrícula, turma ou responsável..."
+          status={status}
+          onStatusChange={setStatus}
+          showSchoolFilter={false}
+          extra={
+            <div className="w-full sm:w-44">
+              <Select
+                label="Turno"
+                value={shift}
+                onChange={(event) => setShift(event.target.value as StudentShift | 'todos')}
+                options={[
+                  { value: 'todos', label: 'Todos' },
+                  ...Object.entries(STUDENT_SHIFT_LABELS).map(([value, label]) => ({ value, label })),
+                ]}
+              />
+            </div>
+          }
+        />
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="Nenhum aluno encontrado"
+            description={
+              students.length === 0
+                ? canManageStudents
+                  ? 'Cadastre o primeiro aluno para começar.'
+                  : 'Ainda não há alunos cadastrados nesta escola.'
+                : 'Ajuste os filtros ou a busca para ver resultados.'
+            }
+            actionLabel={canManageStudents && students.length === 0 ? 'Cadastrar aluno' : undefined}
+            onAction={
+              canManageStudents && students.length === 0
+                ? () => navigate('/app/alunos/novo')
+                : undefined
+            }
+          />
+        ) : (
+          <>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Aluno</TableHeaderCell>
+                  <TableHeaderCell>Matrícula</TableHeaderCell>
+                  <TableHeaderCell>Turma</TableHeaderCell>
+                  <TableHeaderCell>Turno</TableHeaderCell>
+                  <TableHeaderCell>Escola</TableHeaderCell>
+                  <TableHeaderCell>Responsáveis</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Ações</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pageItems.map((student) => (
+                  <TableRow
+                    key={student.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Abrir resumo de ${student.name}`}
+                    onClick={() => setPreview(student)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setPreview(student)
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <StudentAvatar
+                          name={student.name}
+                          gender={student.gender}
+                          photoUrl={student.photoUrl || undefined}
+                          size="sm"
+                        />
+                        <p className="font-medium">{student.name}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{student.enrollmentCode || '—'}</TableCell>
+                    <TableCell>{student.className || '—'}</TableCell>
+                    <TableCell>
+                      {student.shift ? STUDENT_SHIFT_LABELS[student.shift] : '—'}
+                    </TableCell>
+                    <TableCell>{schoolMap[student.schoolId] || '—'}</TableCell>
+                    <TableCell>
+                      {student.guardianIds.length === 0
+                        ? '—'
+                        : student.guardianIds
+                            .map((id) => guardianMap[id] || 'Responsável')
+                            .join(', ')}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={student.status} />
+                    </TableCell>
+                    <TableCell>
+                      {canManageStudents ? (
+                        <TableActions>
+                          <TableActionLink to={`/app/alunos/${student.id}/editar`}>
+                            Editar
+                          </TableActionLink>
+                          <TableActionButton onClick={() => setPending(student)}>
+                            {student.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                          </TableActionButton>
+                        </TableActions>
+                      ) : (
+                        <span className="text-xs text-ink-muted">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {PaginationBar}
+          </>
+        )}
+
+        <Modal
+          open={Boolean(preview)}
+          onClose={() => setPreview(null)}
+          title={preview?.name || 'Aluno'}
+          description="Resumo do aluno. Use Ver para abrir a página completa."
+          size="lg"
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setPreview(null)}>
+                Fechar
+              </Button>
+              {canManageStudents && preview && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const id = preview.id
+                    setPreview(null)
+                    navigate(`/app/alunos/${id}/editar`)
+                  }}
+                >
+                  Editar
+                </Button>
+              )}
+              {preview && <Button onClick={() => openDetail(preview.id)}>Ver</Button>}
+            </>
+          }
+        >
+          {preview && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <StudentAvatar
+                  name={preview.name}
+                  gender={preview.gender}
+                  photoUrl={preview.photoUrl || undefined}
+                  size="md"
+                />
+                <div>
+                  <StatusBadge status={preview.status} />
+                  <p className="mt-1 text-sm text-ink-muted">
+                    {schoolMap[preview.schoolId] || 'Escola'}
+                  </p>
+                </div>
+              </div>
+              <dl className="grid gap-3 sm:grid-cols-2">
+                {[
+                  { label: 'Matrícula', value: preview.enrollmentCode || '—' },
+                  { label: 'Turma', value: preview.className || '—' },
+                  {
+                    label: 'Turno',
+                    value: preview.shift ? STUDENT_SHIFT_LABELS[preview.shift] : '—',
+                  },
+                  {
+                    label: 'Responsáveis',
+                    value:
+                      preview.guardianIds.length === 0
+                        ? '—'
+                        : preview.guardianIds
+                            .map((id) => guardianMap[id] || 'Responsável')
+                            .join(', '),
+                  },
+                ].map((field) => (
+                  <div key={field.label}>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                      {field.label}
+                    </dt>
+                    <dd className="mt-1 text-sm text-ink">{field.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </Modal>
+
+        <ConfirmDialog
+          open={Boolean(pending)}
+          title={pending?.status === 'ativo' ? 'Inativar aluno?' : 'Ativar aluno?'}
+          description="Confirme a alteração de status deste aluno."
+          confirmLabel="Confirmar"
+          variant={pending?.status === 'ativo' ? 'danger' : 'primary'}
+          loading={saving}
+          onCancel={() => setPending(null)}
+          onConfirm={toggleStatus}
+        />
+      </div>
     </RequirePermission>
   )
 }

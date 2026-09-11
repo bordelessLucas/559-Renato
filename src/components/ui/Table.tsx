@@ -1,4 +1,10 @@
-import type { ReactNode, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from 'react'
+import type {
+  HTMLAttributes,
+  ReactNode,
+  TableHTMLAttributes,
+  TdHTMLAttributes,
+  ThHTMLAttributes,
+} from 'react'
 import { cn } from '../../lib/cn'
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
@@ -17,8 +23,16 @@ export function TableBody({ children }: { children: ReactNode }) {
   return <tbody className="divide-y divide-line bg-surface">{children}</tbody>
 }
 
-export function TableRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <tr className={cn('hover:bg-surface-muted/70', className)}>{children}</tr>
+export function TableRow({
+  children,
+  className,
+  ...props
+}: { children: ReactNode; className?: string } & HTMLAttributes<HTMLTableRowElement>) {
+  return (
+    <tr className={cn('hover:bg-surface-muted/70', className)} {...props}>
+      {children}
+    </tr>
+  )
 }
 
 export function TableHeaderCell({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {

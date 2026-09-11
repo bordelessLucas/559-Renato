@@ -1,0 +1,21 @@
+---
+description: Comando /prod — produção completa (build, deploy, commit, push)
+alwaysApply: true
+---
+
+# Comando `/prod`
+
+Quando o usuário disser `/prod` (ou equivalente claro pedindo produção):
+
+1. **Build** da app (`npm run build`)
+2. **Deploy** Firebase Hosting em produção (`npx firebase deploy --only hosting --non-interactive`, projeto `renato-29b68`)
+3. **Commit** de todas as mudanças relevantes do trabalho (não perguntar de novo — `/prod` já autoriza o commit)
+4. **Push** para o remoto da branch atual (`git push`)
+
+## Regras
+
+- Não pular commit nem push.
+- Não usar `--force` no push.
+- Não commitar secrets (`.env`, credenciais).
+- Incluir no commit o código fonte e artefatos de deploy já versionados no repo (ex.: `.firebase/hosting.*.cache` se estiver tracked).
+- Após concluir, informar a URL de Hosting e confirmar que o push foi feito.

@@ -60,6 +60,13 @@ export function SchoolDetailPage() {
     void load()
   }, [id, profile])
 
+  useEffect(() => {
+    if (loading || !school) return
+    if (window.location.hash !== '#qrcode') return
+    const el = document.getElementById('qrcode')
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [loading, school])
+
   const toggleStatus = async () => {
     if (!school || !canManageSchools) return
     setSaving(true)

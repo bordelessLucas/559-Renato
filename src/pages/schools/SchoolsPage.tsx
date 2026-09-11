@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { EmptyState } from '../../components/feedback/EmptyState'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { ListToolbar, useClientPagination, useFilteredSearch } from '../../components/forms/ListToolbar'
 import {
   Button,
+  Modal,
   PageSkeleton,
   Table,
+  TableActionButton,
+  TableActionLink,
+  TableActions,
   TableBody,
   TableCell,
   TableHead,
@@ -22,6 +26,7 @@ import { listSchoolsForProfile, setSchoolStatus } from '../../services/schools'
 import type { School } from '../../types/school'
 import type { EntityStatus } from '../../types/common'
 import { canAccessSchoolScoped } from '../../lib/permissions'
+import { cn } from '../../lib/cn'
 
 export function SchoolsPage() {
   const { profile, canManageSchools } = useAuth()
@@ -34,6 +39,7 @@ export function SchoolsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<EntityStatus | 'todos'>('todos')
   const [pendingStatus, setPendingStatus] = useState<School | null>(null)
+  const [previewSchool, setPreviewSchool] = useState<School | null>(null)
   const [saving, setSaving] = useState(false)
 
   const debouncedSearch = useFilteredSearch(search)
@@ -68,6 +74,11 @@ export function SchoolsPage() {
 
   const { pageItems, PaginationBar } = useClientPagination(filtered)
 
+  const openQrPage = (schoolId: string) => {
+    setPreviewSchool(null)
+    navigate(`/app/escolas/${schoolId}#qrcode`)
+  }
+
   const toggleStatus = async () => {
     if (!pendingStatus || !canManageSchools) return
     setSaving(true)
@@ -97,8 +108,8 @@ export function SchoolsPage() {
         title="Escolas"
         description={
           canManageSchools
-            ? 'Cadastre e gerencie as instituições do sistema.'
-            : 'Consulte os dados da sua escola.'
+            ? 'Cadastre e gerencie as instituições do sistema. Clique na linha para ver o resumo.'
+            : 'Consulte os dados da sua escola. Clique na linha para ver o resumo.'
         }
         action={
           canManageSchools ? (
@@ -139,7 +150,20 @@ export function SchoolsPage() {
             </TableHead>
             <TableBody>
               {pageItems.map((school) => (
-                <TableRow key={school.id}>
+                <TableRow
+                  key={school.id}
+                  className="cursor-pointer"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Abrir resumo de ${school.tradeName || school.name}`}
+                  onClick={() => setPreviewSchool(school)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setPreviewSchool(school)
+                    }
+                  }}
+                >
                   <TableCell>
                     <div>
                       <p className="font-medium">{school.tradeName || school.name}</p>
@@ -153,31 +177,18 @@ export function SchoolsPage() {
                     <StatusBadge status={school.status} />
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      <Link to={`/app/escolas/${school.id}`} className="text-sm font-semibold text-brand-700 hover:text-brand-800">
-                        Ver
-                      </Link>
-                      <Link
-                        to={`/app/escolas/${school.id}#qrcode`}
-                        className="text-sm font-semibold text-ink-muted hover:text-ink"
-                      >
-                        QR Code
-                      </Link>
-                      {canManageSchools && (
-                        <>
-                          <Link to={`/app/escolas/${school.id}/editar`} className="text-sm font-semibold text-ink-muted hover:text-ink">
-                            Editar
-                          </Link>
-                          <button
-                            type="button"
-                            className="text-sm font-semibold text-ink-muted hover:text-ink"
-                            onClick={() => setPendingStatus(school)}
-                          >
-                            {school.status === 'ativo' ? 'Inativar' : 'Ativar'}
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    {canManageSchools ? (
+                      <TableActions>
+                        <TableActionLink to={`/app/escolas/${school.id}/editar`}>
+                          Editar
+                        </TableActionLink>
+                        <TableActionButton onClick={() => setPendingStatus(school)}>
+                          {school.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                        </TableActionButton>
+                      </TableActions>
+                    ) : (
+                      <span className="text-xs text-ink-muted">—</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -186,6 +197,68 @@ export function SchoolsPage() {
           {PaginationBar}
         </>
       )}
+
+      <Modal
+        open={Boolean(previewSchool)}
+        onClose={() => setPreviewSchool(null)}
+        title={previewSchool?.tradeName || previewSchool?.name || 'Escola'}
+        description="Resumo da escola. Use Ver QR para abrir a página com o código de cadastro."
+        size="lg"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setPreviewSchool(null)}>
+              Fechar
+            </Button>
+            {canManageSchools && previewSchool && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const id = previewSchool.id
+                  setPreviewSchool(null)
+                  navigate(`/app/escolas/${id}/editar`)
+                }}
+              >
+                Editar
+              </Button>
+            )}
+            {previewSchool && (
+              <Button onClick={() => openQrPage(previewSchool.id)}>Ver QR</Button>
+            )}
+          </>
+        }
+      >
+        {previewSchool && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={previewSchool.status} />
+              <span className="text-sm text-ink-muted">
+                {previewSchool.city}/{previewSchool.state}
+              </span>
+            </div>
+            <dl className="grid gap-3 sm:grid-cols-2">
+              {[
+                { label: 'Nome', value: previewSchool.name },
+                { label: 'Nome fantasia', value: previewSchool.tradeName || '—' },
+                { label: 'CNPJ', value: previewSchool.cnpj || '—' },
+                { label: 'Telefone', value: previewSchool.phone || '—' },
+                { label: 'E-mail', value: previewSchool.email || '—' },
+                {
+                  label: 'Endereço',
+                  value: previewSchool.address || '—',
+                  wide: true,
+                },
+              ].map((field) => (
+                <div key={field.label} className={cn(field.wide && 'sm:col-span-2')}>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                    {field.label}
+                  </dt>
+                  <dd className="mt-1 text-sm text-ink">{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={Boolean(pendingStatus)}
